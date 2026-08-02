@@ -1,0 +1,90 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build-run",
+      "type": "shell",
+      "command": "dotnet build \"${workspaceFolder}\\src\\MGA-G-Delay-Run\\MGA-G-Delay-Run.csproj\" -v q",
+      "options": {
+        "shell": {
+          "executable": "cmd.exe",
+          "args": ["/d", "/c"]
+        }
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared",
+        "showReuseMessage": false,
+        "clear": true,
+        "close": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "build-setting",
+      "type": "shell",
+      "command": "dotnet build \"${workspaceFolder}\\src\\MGA-G-Delay-Run.Setting\\MGA-G-Delay-Run.Setting.csproj\" -v q",
+      "options": {
+        "shell": {
+          "executable": "cmd.exe",
+          "args": ["/d", "/c"]
+        }
+      },
+      "group": "build",
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared",
+        "showReuseMessage": false,
+        "clear": true,
+        "close": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "run-main",
+      "type": "shell",
+      "command": "dotnet build \"${workspaceFolder}\\src\\MGA-G-Delay-Run\\MGA-G-Delay-Run.csproj\" -v q && start \"\" \"${workspaceFolder}\\src\\MGA-G-Delay-Run\\bin\\Debug\\net8.0-windows\\MGA-G-Delay-Run.exe\"",
+      "options": {
+        "shell": {
+          "executable": "cmd.exe",
+          "args": ["/d", "/c"]
+        }
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared",
+        "close": true,
+        "echo": false,
+        "focus": false,
+        "showReuseMessage": false,
+        "clear": true
+      }
+    },
+    {
+      "label": "run-setting",
+      "type": "shell",
+      "command": "dotnet build \"${workspaceFolder}\\src\\MGA-G-Delay-Run.Setting\\MGA-G-Delay-Run.Setting.csproj\" -v q && start \"\" \"${workspaceFolder}\\src\\MGA-G-Delay-Run.Setting\\bin\\Debug\\net8.0-windows\\MGA-G-Delay-Run.Setting.exe\"",
+      "options": {
+        "shell": {
+          "executable": "cmd.exe",
+          "args": ["/d", "/c"]
+        }
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared",
+        "close": true,
+        "echo": false,
+        "focus": false,
+        "showReuseMessage": false,
+        "clear": true
+      }
+    }
+  ]
+}

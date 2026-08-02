@@ -1,0 +1,907 @@
+using System.ComponentModel;
+using System.Diagnostics;
+using MGA_G_Delay_Run.Forms;
+using MGA_G_Delay_Run.Setting.IO;
+using MGA_G_Delay_Run.Setting.Models;
+using MGA_G_Delay_Run.Theme;
+
+namespace MGA_G_Delay_Run.Setting;
+
+public partial class MainForm : AppForm
+{
+    private readonly BindingList<DelayEntry> _entries = [];
+    private string? _userSortProperty;
+    private ListSortDirection _userSortDirection = ListSortDirection.Ascending;
+    private int _testRunWaitCount;
+    private const int MinVisibleRows = 5;
+
+    private bool _isDirty;
+    private bool _isLoading;
+    private bool _allowCloseWithoutPrompt;
+    private bool _fittingWindow;
+
+    public MainForm()
+    {
+        InitializeComponent();
+        Text = AppInfo.WindowTitle;
+        entryGrid.DataSource = _entries;
+        entryGrid.ColumnHeaderMouseClick += EntryGrid_ColumnHeaderMouseClick;
+        entryGrid.CellPainting += EntryGrid_CellPainting;
+        entryGrid.EditingControlShowing += EntryGrid_EditingControlShowing;
+        _entries.ListChanged += Entries_ListChanged;
+    }
+
+    protected override bool PersistWindowBounds => false;
+
+    protected override void OnLoad(EventArgs e)
+    {
+        base.OnLoad(e);
+        ApplyContextMenuTheme();
+        restartColumn.HeaderCell.ToolTipText = restartColumn.ToolTipText;
+        LoadEntries();
+        UpdateSaveButtonAppearance();
+        UpdateStartAllButtonState();
+        FitWindowToContent();
+        CenterOnPrimaryDisplay();
+    }
+
+    protected override void OnFormClosing(FormClosingEventArgs e)
+    {
+        if (!_allowCloseWithoutPrompt && _isDirty && !ConfirmDiscardChanges())
+        {
+            e.Cancel = true;
+            return;
+        }
+
+        base.OnFormClosing(e);
+    }
+
+    private void ApplyContextMenuTheme()
+    {
+        gridContextMenu.BackColor = AppTheme.Surface;
+        gridContextMenu.ForeColor = AppTheme.Foreground;
+        gridContextMenu.RenderMode = ToolStripRenderMode.System;
+
+        foreach (ToolStripItem item in gridContextMenu.Items)
+        {
+            item.BackColor = AppTheme.Surface;
+            item.ForeColor = AppTheme.Foreground;
+        }
+    }
+
+    private void LoadEntries()
+    {
+        _isLoading = true;
+        try
+        {
+            _entries.Clear();
+            foreach (var entry in DelayEntryStore.Load())
+            {
+                _entries.Add(entry);
+            }
+
+            ApplyDefaultSort();
+            SetDirty(false);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                this,
+                $"設定の読み込みに失敗しました。{Environment.NewLine}{ex.Message}",
+                AppInfo.ProductName,
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void Entries_ListChanged(object? sender, ListChangedEventArgs e)
+    {
+        if (!_isLoading
+            && e.ListChangedType is ListChangedType.ItemAdded
+                or ListChangedType.ItemDeleted
+                or ListChangedType.ItemChanged
+                or ListChangedType.Reset)
+        {
+            SetDirty(true);
+        }
+
+        UpdateStartAllButtonState();
+    }
+
+    private void UpdateStartAllButtonState()
+    {
+        var hasEntries = _entries.Count > 0;
+        startAllButton.Enabled = hasEntries;
+
+        if (hasEntries)
+        {
+            AppTheme.ApplyButton(startAllButton);
+        }
+        else
+        {
+            AppTheme.ApplyButton(startAllButton);
+            startAllButton.BackColor = AppTheme.Background;
+            startAllButton.ForeColor = AppTheme.ForegroundMuted;
+            startAllButton.FlatAppearance.MouseOverBackColor = AppTheme.Background;
+            startAllButton.Cursor = Cursors.Default;
+        }
+    }
+
+    private void SetDirty(bool isDirty)
+    {
+        _isDirty = isDirty;
+        UpdateSaveButtonAppearance();
+    }
+
+    private void UpdateSaveButtonAppearance()
+    {
+        AppTheme.ApplyButton(saveButton);
+        if (_isDirty)
+        {
+            saveButton.BackColor = AppTheme.Danger;
+            saveButton.FlatAppearance.MouseOverBackColor = AppTheme.DangerHover;
+        }
+    }
+
+    private bool ConfirmDiscardChanges()
+    {
+        var result = MessageBox.Show(
+            this,
+            "保存していない変更を破棄しますか？",
+            AppInfo.ProductName,
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Warning,
+            MessageBoxDefaultButton.Button2);
+
+        return result == DialogResult.Yes;
+    }
+
+    private void ApplyDefaultSort()
+    {
+        _userSortProperty = null;
+        _userSortDirection = ListSortDirection.Ascending;
+
+        var sorted = _entries
+            .OrderBy(entry => entry.Delay)
+            .ThenBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var wasLoading = _isLoading;
+        _isLoading = true;
+        try
+        {
+            ReplaceEntries(sorted);
+        }
+        finally
+        {
+            _isLoading = wasLoading;
+        }
+    }
+
+    private void EntryGrid_ColumnHeaderMouseClick(object? sender, DataGridViewCellMouseEventArgs e)
+    {
+        if (e.ColumnIndex < 0)
+        {
+            return;
+        }
+
+        var propertyName = entryGrid.Columns[e.ColumnIndex].DataPropertyName;
+        if (string.IsNullOrWhiteSpace(propertyName))
+        {
+            return;
+        }
+
+        if (string.Equals(_userSortProperty, propertyName, StringComparison.Ordinal))
+        {
+            _userSortDirection = _userSortDirection == ListSortDirection.Ascending
+                ? ListSortDirection.Descending
+                : ListSortDirection.Ascending;
+        }
+        else
+        {
+            _userSortProperty = propertyName;
+            _userSortDirection = ListSortDirection.Ascending;
+        }
+
+        ApplyUserSort();
+    }
+
+    private void ApplyUserSort()
+    {
+        if (string.IsNullOrWhiteSpace(_userSortProperty))
+        {
+            ApplyDefaultSort();
+            return;
+        }
+
+        IEnumerable<DelayEntry> query = _userSortProperty switch
+        {
+            nameof(DelayEntry.Delay) => _userSortDirection == ListSortDirection.Ascending
+                ? _entries.OrderBy(entry => entry.Delay).ThenBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)
+                : _entries.OrderByDescending(entry => entry.Delay).ThenByDescending(entry => entry.Path, StringComparer.OrdinalIgnoreCase),
+            nameof(DelayEntry.FileName) => _userSortDirection == ListSortDirection.Ascending
+                ? _entries.OrderBy(entry => entry.FileName, StringComparer.OrdinalIgnoreCase)
+                : _entries.OrderByDescending(entry => entry.FileName, StringComparer.OrdinalIgnoreCase),
+            nameof(DelayEntry.Path) => _userSortDirection == ListSortDirection.Ascending
+                ? _entries.OrderBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)
+                : _entries.OrderByDescending(entry => entry.Path, StringComparer.OrdinalIgnoreCase),
+            nameof(DelayEntry.Option) => _userSortDirection == ListSortDirection.Ascending
+                ? _entries.OrderBy(entry => entry.Option, StringComparer.OrdinalIgnoreCase)
+                : _entries.OrderByDescending(entry => entry.Option, StringComparer.OrdinalIgnoreCase),
+            nameof(DelayEntry.Restart) => _userSortDirection == ListSortDirection.Ascending
+                ? _entries.OrderBy(entry => entry.Restart)
+                : _entries.OrderByDescending(entry => entry.Restart),
+            _ => _entries,
+        };
+
+        var wasLoading = _isLoading;
+        _isLoading = true;
+        try
+        {
+            ReplaceEntries(query.ToList());
+        }
+        finally
+        {
+            _isLoading = wasLoading;
+        }
+    }
+
+    private void ReplaceEntries(IReadOnlyList<DelayEntry> sorted)
+    {
+        _entries.RaiseListChangedEvents = false;
+        try
+        {
+            _entries.Clear();
+            foreach (var entry in sorted)
+            {
+                _entries.Add(entry);
+            }
+        }
+        finally
+        {
+            _entries.RaiseListChangedEvents = true;
+            _entries.ResetBindings();
+        }
+
+        entryGrid.ClearSelection();
+        UpdateSortGlyphs();
+        OptimizeColumnWidths();
+    }
+
+    private void UpdateSortGlyphs()
+    {
+        // 既定ソートは Delay → Path。矢印は主キー列に付ける。
+        // SortGlyphDirection は DGV 本体の描画と二重になるため使わず、自前描画のみにする。
+        foreach (DataGridViewColumn column in entryGrid.Columns)
+        {
+            column.HeaderText = column.DataPropertyName switch
+            {
+                nameof(DelayEntry.Delay) => "Delay",
+                nameof(DelayEntry.FileName) => "File Name",
+                nameof(DelayEntry.Path) => "Path",
+                nameof(DelayEntry.Option) => "Option",
+                nameof(DelayEntry.Restart) => "Restart",
+                _ => column.DataPropertyName,
+            };
+
+            column.HeaderCell.SortGlyphDirection = SortOrder.None;
+        }
+
+        entryGrid.Invalidate();
+    }
+
+    private SortOrder GetSortDirectionForColumn(int columnIndex)
+    {
+        if (columnIndex < 0 || columnIndex >= entryGrid.Columns.Count)
+        {
+            return SortOrder.None;
+        }
+
+        var activeProperty = _userSortProperty ?? nameof(DelayEntry.Delay);
+        var propertyName = entryGrid.Columns[columnIndex].DataPropertyName;
+        if (!string.Equals(propertyName, activeProperty, StringComparison.Ordinal))
+        {
+            return SortOrder.None;
+        }
+
+        return _userSortDirection == ListSortDirection.Ascending
+            ? SortOrder.Ascending
+            : SortOrder.Descending;
+    }
+
+    private void EntryGrid_CellPainting(object? sender, DataGridViewCellPaintingEventArgs e)
+    {
+        if (e.RowIndex != -1 || e.ColumnIndex < 0 || e.Graphics is null || e.CellStyle is null)
+        {
+            return;
+        }
+
+        var direction = GetSortDirectionForColumn(e.ColumnIndex);
+
+        e.Paint(
+            e.CellBounds,
+            DataGridViewPaintParts.Background
+            | DataGridViewPaintParts.Border
+            | DataGridViewPaintParts.ContentBackground);
+
+        var text = entryGrid.Columns[e.ColumnIndex].HeaderText;
+        var textBounds = Rectangle.Inflate(e.CellBounds, -6, 0);
+        if (direction != SortOrder.None)
+        {
+            textBounds.Width -= 14;
+            DrawSortGlyph(e.Graphics, e.CellBounds, direction);
+        }
+
+        TextRenderer.DrawText(
+            e.Graphics,
+            text,
+            e.CellStyle.Font ?? entryGrid.Font,
+            textBounds,
+            e.CellStyle.ForeColor,
+            TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+
+        e.Handled = true;
+    }
+
+    private static void DrawSortGlyph(Graphics graphics, Rectangle bounds, SortOrder direction)
+    {
+        const int width = 10;
+        const int height = 6;
+        var x = bounds.Right - width - AppLayout.Spacing;
+        var y = bounds.Top + ((bounds.Height - height) / 2);
+
+        Point[] points = direction == SortOrder.Ascending
+            ? [new Point(x, y + height), new Point(x + width, y + height), new Point(x + (width / 2), y)]
+            : [new Point(x, y), new Point(x + width, y), new Point(x + (width / 2), y + height)];
+
+        using var brush = new SolidBrush(AppTheme.ForegroundMuted);
+        graphics.FillPolygon(brush, points);
+    }
+
+    private void OptimizeColumnWidths()
+    {
+        if (entryGrid.ColumnCount == 0)
+        {
+            return;
+        }
+
+        var mode = entryGrid.Rows.Count == 0
+            ? DataGridViewAutoSizeColumnsMode.ColumnHeader
+            : DataGridViewAutoSizeColumnsMode.AllCells;
+
+        entryGrid.AutoResizeColumns(mode);
+        FitWindowToContent();
+    }
+
+    /// <summary>
+    /// 最低 5 行分の高さを確保し、行数・列幅に合わせてウィンドウを固定サイズ更新する。
+    /// 内容が収まるよう寸法を取り、スクロールバーを出さない。
+    /// </summary>
+    private void FitWindowToContent()
+    {
+        if (_fittingWindow || !IsHandleCreated || IsDisposed || entryGrid.IsDisposed || entryGrid.ColumnCount == 0)
+        {
+            return;
+        }
+
+        _fittingWindow = true;
+        try
+        {
+            // スクロールバー分の幅を奪われないよう、先に無効化する
+            entryGrid.ScrollBars = ScrollBars.None;
+
+            var rowHeight = entryGrid.RowTemplate.Height;
+            if (entryGrid.Rows.Count > 0)
+            {
+                rowHeight = Math.Max(rowHeight, entryGrid.Rows[0].Height);
+            }
+
+            var visibleRows = Math.Max(MinVisibleRows, _entries.Count);
+            var headerHeight = entryGrid.ColumnHeadersHeight;
+
+            var columnsWidth = entryGrid.Columns.GetColumnsWidth(DataGridViewElementStates.Visible);
+            if (entryGrid.RowHeadersVisible)
+            {
+                columnsWidth += entryGrid.RowHeadersWidth;
+            }
+
+            // 枠・セル余白・DPI 誤差で 1px 足りず横スクロールが出るのを防ぐ
+            var gridChrome = GetGridChromeWidth() + AppLayout.Spacing;
+
+            var buttonBarContentWidth =
+                startAllButton.Width
+                + saveButton.Width
+                + cancelButton.Width
+                + (AppLayout.Spacing * 4);
+
+            var buttonBarHeight = AppLayout.Spacing + AppLayout.ButtonHeight + AppLayout.Spacing;
+            var idealGridHeight = headerHeight + (rowHeight * visibleRows) + GetGridChromeHeight();
+
+            var area = Screen.FromControl(this).WorkingArea;
+            var chromeW = Width - ClientSize.Width;
+            var chromeH = Height - ClientSize.Height;
+            var maxClientW = Math.Max(200, area.Width - chromeW);
+            var maxClientH = Math.Max(150, area.Height - chromeH);
+
+            var clientW = Math.Max(columnsWidth + gridChrome, buttonBarContentWidth);
+            var clientH = idealGridHeight + buttonBarHeight;
+
+            // 画面に収まらない場合のみ縦スクロールを許可（横は出さない）
+            var heightClamped = clientH > maxClientH;
+            clientW = Math.Min(clientW, maxClientW);
+            clientH = Math.Min(clientH, maxClientH);
+            entryGrid.ScrollBars = heightClamped ? ScrollBars.Vertical : ScrollBars.None;
+
+            if (heightClamped)
+            {
+                clientW = Math.Min(
+                    Math.Max(clientW, columnsWidth + gridChrome + SystemInformation.VerticalScrollBarWidth),
+                    maxClientW);
+            }
+
+            if (ClientSize.Width == clientW && ClientSize.Height == clientH)
+            {
+                return;
+            }
+
+            ClientSize = new Size(clientW, clientH);
+            EnsureOnScreen();
+        }
+        finally
+        {
+            _fittingWindow = false;
+        }
+    }
+
+    private int GetGridChromeWidth()
+    {
+        return entryGrid.BorderStyle switch
+        {
+            BorderStyle.Fixed3D => SystemInformation.Border3DSize.Width * 2,
+            BorderStyle.FixedSingle => SystemInformation.BorderSize.Width * 2,
+            _ => 2,
+        };
+    }
+
+    private int GetGridChromeHeight()
+    {
+        return entryGrid.BorderStyle switch
+        {
+            BorderStyle.Fixed3D => SystemInformation.Border3DSize.Height * 2,
+            BorderStyle.FixedSingle => SystemInformation.BorderSize.Height * 2,
+            _ => 2,
+        };
+    }
+
+    private void EntryGrid_DragEnter(object? sender, DragEventArgs e)
+    {
+        if (e.Data?.GetDataPresent(DataFormats.FileDrop) == true)
+        {
+            e.Effect = DragDropEffects.Copy;
+            return;
+        }
+
+        e.Effect = DragDropEffects.None;
+    }
+
+    private void EntryGrid_DragDrop(object? sender, DragEventArgs e)
+    {
+        if (e.Data?.GetData(DataFormats.FileDrop) is not string[] paths || paths.Length == 0)
+        {
+            return;
+        }
+
+        var rejected = 0;
+        var added = 0;
+
+        foreach (var path in paths.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            if (!ExecutableFileFilter.IsExecutable(path))
+            {
+                rejected++;
+                continue;
+            }
+
+            var fullPath = Path.GetFullPath(path);
+            if (_entries.Any(entry => string.Equals(entry.Path, fullPath, StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            _entries.Add(new DelayEntry
+            {
+                Delay = 0,
+                FileName = Path.GetFileName(fullPath),
+                Path = fullPath,
+                Option = string.Empty,
+                Restart = false,
+            });
+            added++;
+        }
+
+        if (added > 0)
+        {
+            if (_userSortProperty is null)
+            {
+                ApplyDefaultSort();
+            }
+            else
+            {
+                ApplyUserSort();
+            }
+        }
+        else
+        {
+            OptimizeColumnWidths();
+        }
+
+        if (rejected > 0)
+        {
+            MessageBox.Show(
+                this,
+                $"実行ファイルではないため、{rejected} 件をスキップしました。",
+                AppInfo.ProductName,
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+        }
+    }
+
+    private void EntryGrid_EditingControlShowing(object? sender, DataGridViewEditingControlShowingEventArgs e)
+    {
+        if (entryGrid.CurrentCell?.OwningColumn != delayColumn)
+        {
+            return;
+        }
+
+        if (e.Control is not TextBox textBox)
+        {
+            return;
+        }
+
+        // 表示直後にキャレットが末尾へ動くため、次フレームで全選択する
+        BeginInvoke(() =>
+        {
+            if (!textBox.IsDisposed && textBox.Focused)
+            {
+                textBox.SelectAll();
+            }
+        });
+    }
+
+    private void EntryGrid_CellEndEdit(object? sender, DataGridViewCellEventArgs e)
+    {
+        if (e.RowIndex < 0 || e.RowIndex >= _entries.Count)
+        {
+            return;
+        }
+
+        var entry = _entries[e.RowIndex];
+        if (e.ColumnIndex == pathColumn.Index && !string.IsNullOrWhiteSpace(entry.Path))
+        {
+            try
+            {
+                var fullPath = Path.GetFullPath(entry.Path.Trim());
+                entry.Path = fullPath;
+                entry.FileName = Path.GetFileName(fullPath);
+            }
+            catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+            {
+                // 不正パスはそのまま残し、保存時や Test Run で検出する
+            }
+        }
+
+        OptimizeColumnWidths();
+    }
+
+    private void EntryGrid_CurrentCellDirtyStateChanged(object? sender, EventArgs e)
+    {
+        if (entryGrid.IsCurrentCellDirty && entryGrid.CurrentCell is DataGridViewCheckBoxCell)
+        {
+            entryGrid.CommitEdit(DataGridViewDataErrorContexts.Commit);
+        }
+    }
+
+    private void EntryGrid_DataError(object? sender, DataGridViewDataErrorEventArgs e)
+    {
+        e.ThrowException = false;
+        MessageBox.Show(
+            this,
+            $"値が不正です。{Environment.NewLine}{e.Exception?.Message}",
+            AppInfo.ProductName,
+            MessageBoxButtons.OK,
+            MessageBoxIcon.Warning);
+    }
+
+    private void GridContextMenu_Opening(object? sender, CancelEventArgs e)
+    {
+        var hasSelection = entryGrid.SelectedRows.Count > 0 || entryGrid.CurrentRow is not null;
+        testRunMenuItem.Enabled = hasSelection;
+        deleteMenuItem.Enabled = hasSelection;
+    }
+
+    private void TestRunMenuItem_Click(object? sender, EventArgs e)
+    {
+        foreach (var entry in GetSelectedEntries())
+        {
+            _ = TryTestRunAsync(entry);
+        }
+    }
+
+    private void StartAllButton_Click(object? sender, EventArgs e)
+    {
+        entryGrid.EndEdit();
+
+        if (_entries.Count == 0)
+        {
+            return;
+        }
+
+        if (!TryValidateEntries(out var error))
+        {
+            MessageBox.Show(
+                this,
+                error,
+                AppInfo.ProductName,
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+            return;
+        }
+
+        foreach (var entry in _entries.ToList())
+        {
+            _ = TryTestRunAsync(entry);
+        }
+    }
+
+    private void DeleteMenuItem_Click(object? sender, EventArgs e)
+    {
+        var selected = GetSelectedEntries();
+        if (selected.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var entry in selected)
+        {
+            _entries.Remove(entry);
+        }
+
+        OptimizeColumnWidths();
+    }
+
+    private void SaveButton_Click(object? sender, EventArgs e)
+    {
+        entryGrid.EndEdit();
+
+        if (!TryValidateEntries(out var error))
+        {
+            MessageBox.Show(
+                this,
+                error,
+                AppInfo.ProductName,
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+            return;
+        }
+
+        try
+        {
+            DelayEntryStore.Save(_entries);
+            SetDirty(false);
+            MessageBox.Show(
+                this,
+                "保存しました。",
+                AppInfo.ProductName,
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                this,
+                $"保存に失敗しました。{Environment.NewLine}{ex.Message}",
+                AppInfo.ProductName,
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
+        }
+    }
+
+    private void CancelButton_Click(object? sender, EventArgs e)
+    {
+        if (_isDirty && !ConfirmDiscardChanges())
+        {
+            return;
+        }
+
+        _allowCloseWithoutPrompt = true;
+        Close();
+    }
+
+    private async Task WaitWithCountdownAsync(int delaySeconds, string fileName)
+    {
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(delaySeconds);
+
+        while (!IsDisposed && !Disposing)
+        {
+            var remaining = deadline - DateTime.UtcNow;
+            if (remaining <= TimeSpan.Zero)
+            {
+                break;
+            }
+
+            SetTitleStatus($"Test Run {FormatCountdown(remaining)} - {fileName}");
+            var delay = remaining < TimeSpan.FromMilliseconds(250)
+                ? remaining
+                : TimeSpan.FromMilliseconds(250);
+            await Task.Delay(delay);
+        }
+    }
+
+    private static string FormatCountdown(TimeSpan remaining)
+    {
+        if (remaining < TimeSpan.Zero)
+        {
+            remaining = TimeSpan.Zero;
+        }
+
+        var totalSeconds = (int)Math.Ceiling(remaining.TotalSeconds);
+        var minutes = totalSeconds / 60;
+        var seconds = totalSeconds % 60;
+        return $"{minutes:00}:{seconds:00}";
+    }
+
+    private void SetTitleStatus(string? status)
+    {
+        if (IsDisposed || Disposing)
+        {
+            return;
+        }
+
+        void Apply()
+        {
+            Text = string.IsNullOrWhiteSpace(status)
+                ? AppInfo.WindowTitle
+                : $"{AppInfo.WindowTitle} - {status}";
+        }
+
+        if (InvokeRequired)
+        {
+            try
+            {
+                BeginInvoke(Apply);
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+            catch (InvalidOperationException)
+            {
+            }
+
+            return;
+        }
+
+        Apply();
+    }
+
+    private IReadOnlyList<DelayEntry> GetSelectedEntries()
+    {
+        var rows = entryGrid.SelectedRows.Cast<DataGridViewRow>()
+            .Where(row => row.DataBoundItem is DelayEntry)
+            .Select(row => (DelayEntry)row.DataBoundItem!)
+            .ToList();
+
+        if (rows.Count == 0 && entryGrid.CurrentRow?.DataBoundItem is DelayEntry current)
+        {
+            rows.Add(current);
+        }
+
+        return rows;
+    }
+
+    private async Task TryTestRunAsync(DelayEntry entry)
+    {
+        // 待機中の編集影響を避けるため、開始時点の値を使う
+        var delaySeconds = Math.Max(0, entry.Delay);
+        var filePath = entry.Path?.Trim() ?? string.Empty;
+        var option = entry.Option ?? string.Empty;
+        var fileName = string.IsNullOrWhiteSpace(entry.FileName)
+            ? Path.GetFileName(filePath)
+            : entry.FileName;
+
+        if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
+        {
+            MessageBox.Show(
+                this,
+                $"ファイルが見つかりません。{Environment.NewLine}{filePath}",
+                AppInfo.ProductName,
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+            return;
+        }
+
+        if (!ExecutableFileFilter.IsExecutable(filePath))
+        {
+            MessageBox.Show(
+                this,
+                $"実行ファイルではありません。{Environment.NewLine}{filePath}",
+                AppInfo.ProductName,
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+            return;
+        }
+
+        if (delaySeconds > 0)
+        {
+            Interlocked.Increment(ref _testRunWaitCount);
+            try
+            {
+                await WaitWithCountdownAsync(delaySeconds, fileName);
+            }
+            finally
+            {
+                if (Interlocked.Decrement(ref _testRunWaitCount) <= 0)
+                {
+                    Interlocked.Exchange(ref _testRunWaitCount, 0);
+                    SetTitleStatus(null);
+                }
+            }
+        }
+
+        if (IsDisposed || Disposing)
+        {
+            return;
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = filePath,
+                Arguments = option,
+                UseShellExecute = true,
+                WorkingDirectory = Path.GetDirectoryName(filePath) ?? Environment.CurrentDirectory,
+            });
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                this,
+                $"テスト実行に失敗しました。{Environment.NewLine}{ex.Message}",
+                AppInfo.ProductName,
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
+        }
+    }
+
+    private bool TryValidateEntries(out string error)
+    {
+        for (var i = 0; i < _entries.Count; i++)
+        {
+            var entry = _entries[i];
+            if (entry.Delay < 0)
+            {
+                error = $"{i + 1} 行目: Delay は 0 以上（秒）で指定してください。";
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(entry.Path))
+            {
+                error = $"{i + 1} 行目: Path は必須です。";
+                return false;
+            }
+
+            if (!ExecutableFileFilter.IsExecutable(entry.Path))
+            {
+                error = $"{i + 1} 行目: Path が実行ファイルではありません。{Environment.NewLine}{entry.Path}";
+                return false;
+            }
+        }
+
+        error = string.Empty;
+        return true;
+    }
+}

@@ -1,0 +1,29 @@
+{
+  // F5 / Ctrl+F5 は User keybindings → tasks（run-main / run-setting）
+  // 以下は「実行とデバッグ」パネル用
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "MGA G Delay Run",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build-run",
+      "program": "${workspaceFolder}/src/MGA-G-Delay-Run/bin/Debug/net8.0-windows/MGA-G-Delay-Run.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/src/MGA-G-Delay-Run",
+      "console": "internalConsole",
+      "stopAtEntry": false
+    },
+    {
+      "name": "MGA G Delay Run Setting",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build-setting",
+      "program": "${workspaceFolder}/src/MGA-G-Delay-Run.Setting/bin/Debug/net8.0-windows/MGA-G-Delay-Run.Setting.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/src/MGA-G-Delay-Run.Setting",
+      "console": "internalConsole",
+      "stopAtEntry": false
+    }
+  ]
+}
