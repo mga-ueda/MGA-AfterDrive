@@ -1,4 +1,5 @@
 using System.Drawing.Drawing2D;
+using System.Drawing.Text;
 using MGA_AfterDrive.Theme;
 
 namespace MGA_AfterDrive.Controls;
@@ -103,11 +104,26 @@ public class AppButton : Button
             return;
         }
 
+        DrawCenteredText(g, Text, textColor, bounds);
+    }
+
+    /// <summary>
+    /// ボタン面（枠内）の高さセンターに文字を置く。光学オフセットは加えない。
+    /// </summary>
+    private void DrawCenteredText(Graphics g, string text, Color textColor, RectangleF faceBounds)
+    {
+        var rect = Rectangle.Round(faceBounds);
+        if (rect.Width <= 0 || rect.Height <= 0)
+        {
+            return;
+        }
+
+        g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
         TextRenderer.DrawText(
             g,
-            Text,
+            text,
             Font,
-            ClientRectangle,
+            rect,
             textColor,
             TextFormatFlags.HorizontalCenter
             | TextFormatFlags.VerticalCenter
