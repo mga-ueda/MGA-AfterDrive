@@ -7,13 +7,6 @@ namespace MGA_AfterDrive.IO;
 /// </summary>
 public static class AppSettingsStore
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        PropertyNameCaseInsensitive = true,
-    };
-
     public static AppSettings Load()
     {
         var path = AppPaths.GetSettingsFilePath();
@@ -30,7 +23,7 @@ public static class AppSettingsStore
                 return new AppSettings();
             }
 
-            var settings = JsonSerializer.Deserialize<AppSettings>(json, JsonOptions) ?? new AppSettings();
+            var settings = JsonSerializer.Deserialize<AppSettings>(json, AppJson.Indented) ?? new AppSettings();
             settings.MaxWaitSeconds = AppSettings.ClampMaxWaitSeconds(settings.MaxWaitSeconds);
             return settings;
         }
@@ -53,7 +46,7 @@ public static class AppSettingsStore
         var directory = AppPaths.GetStoreDirectory();
         Directory.CreateDirectory(directory);
 
-        var json = JsonSerializer.Serialize(settings, JsonOptions);
+        var json = JsonSerializer.Serialize(settings, AppJson.Indented);
         File.WriteAllText(AppPaths.GetSettingsFilePath(), json);
     }
 }

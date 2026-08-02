@@ -6,18 +6,21 @@ namespace MGA_AfterDrive.IO;
 public static class AppPaths
 {
     public const string ProductFolderName = "MGA AfterDrive";
-    public const string LegacyProductFolderName = "MGA G Delay Run";
 
     public const string DelayEntriesFileName = "delay-entries.json";
     public const string SettingsFileName = "settings.json";
 
+    /// <summary>
+    /// 埋め込み Setting を展開するディレクトリ名。
+    /// </summary>
+    public const string BundledAppFolderName = "app";
+
     public static string GetStoreDirectory()
     {
-        var root = Path.Combine(
+        var dir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "MGA");
-        var dir = Path.Combine(root, ProductFolderName);
-        MigrateLegacyStoreDirectory(root, dir);
+            "MGA",
+            ProductFolderName);
         return dir;
     }
 
@@ -27,27 +30,6 @@ public static class AppPaths
     public static string GetSettingsFilePath() =>
         Path.Combine(GetStoreDirectory(), SettingsFileName);
 
-    /// <summary>
-    /// 旧正式名称フォルダがあれば新名称へ移す（設定・エントリの継承）。
-    /// </summary>
-    private static void MigrateLegacyStoreDirectory(string root, string newDirectory)
-    {
-        var legacy = Path.Combine(root, LegacyProductFolderName);
-        if (Directory.Exists(newDirectory) || !Directory.Exists(legacy))
-        {
-            return;
-        }
-
-        try
-        {
-            Directory.Move(legacy, newDirectory);
-        }
-        catch (Exception ex) when (
-            ex is IOException
-                or UnauthorizedAccessException
-                or NotSupportedException)
-        {
-            // 移行失敗時は新規フォルダを使う（呼び出し側で CreateDirectory）
-        }
-    }
+    public static string GetBundledAppDirectory() =>
+        Path.Combine(GetStoreDirectory(), BundledAppFolderName);
 }

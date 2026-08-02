@@ -18,7 +18,7 @@ internal static class PauseAwareCountdown
         TimeSpan maxSlice,
         Func<TimeSpan, string> statusWhileRunning,
         Func<string> statusWhilePaused,
-        Action<string?> setTitleStatus,
+        Action<string?> setStatusText,
         CancellationToken cancellationToken)
     {
         _ = await WaitCoreAsync(
@@ -26,7 +26,7 @@ internal static class PauseAwareCountdown
                 maxSlice,
                 statusWhileRunning,
                 statusWhilePaused,
-                setTitleStatus,
+                setStatusText,
                 detectSettingEntryChanges: false,
                 cancellationToken)
             .ConfigureAwait(false);
@@ -40,7 +40,7 @@ internal static class PauseAwareCountdown
         TimeSpan maxSlice,
         Func<TimeSpan, string> statusWhileRunning,
         Func<string> statusWhilePaused,
-        Action<string?> setTitleStatus,
+        Action<string?> setStatusText,
         bool detectSettingEntryChanges,
         CancellationToken cancellationToken)
     {
@@ -49,7 +49,7 @@ internal static class PauseAwareCountdown
             maxSlice,
             statusWhileRunning,
             statusWhilePaused,
-            setTitleStatus,
+            setStatusText,
             detectSettingEntryChanges,
             cancellationToken);
     }
@@ -59,13 +59,13 @@ internal static class PauseAwareCountdown
         TimeSpan maxSlice,
         Func<TimeSpan, string> statusWhileRunning,
         Func<string> statusWhilePaused,
-        Action<string?> setTitleStatus,
+        Action<string?> setStatusText,
         bool detectSettingEntryChanges,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(statusWhileRunning);
         ArgumentNullException.ThrowIfNull(statusWhilePaused);
-        ArgumentNullException.ThrowIfNull(setTitleStatus);
+        ArgumentNullException.ThrowIfNull(setStatusText);
 
         if (duration <= TimeSpan.Zero)
         {
@@ -97,7 +97,7 @@ internal static class PauseAwareCountdown
                     }
                 }
 
-                setTitleStatus(statusWhilePaused());
+                setStatusText(statusWhilePaused());
                 await Task.Delay(PausePollInterval, cancellationToken).ConfigureAwait(false);
                 continue;
             }
@@ -117,7 +117,7 @@ internal static class PauseAwareCountdown
                 entriesFingerprintAtSettingPause = null;
             }
 
-            setTitleStatus(statusWhileRunning(remaining));
+            setStatusText(statusWhileRunning(remaining));
 
             // 長い Delay のあいだにライセンス／Setting が開閉されてもすぐ検知できるよう短く刻む
             var slice = remaining < maxSlice ? remaining : maxSlice;

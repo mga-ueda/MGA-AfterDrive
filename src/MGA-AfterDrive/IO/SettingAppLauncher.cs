@@ -1,15 +1,18 @@
 using System.Diagnostics;
+using System.Reflection;
+using System.Security.Cryptography;
 
 namespace MGA_AfterDrive.IO;
 
 /// <summary>
 /// 設定アプリ（MGA AfterDrive Setting）を起動する。
+/// 開発時は隣の多ファイル構成、公開時は単一 EXE 内の埋め込みを展開して起動する。
 /// </summary>
 public static class SettingAppLauncher
 {
     private const string SettingExeName = "MGA-AfterDrive.Setting.exe";
-    private const string SettingDllName = "MGA-AfterDrive.Setting.dll";
     private const string SettingProcessName = "MGA-AfterDrive.Setting";
+    private const string BundledResourceName = "MGA_AfterDrive.Bundled.Setting.exe";
 
     /// <summary>
     /// 設定アプリが起動中かどうか。
@@ -43,10 +46,14 @@ public static class SettingAppLauncher
     {
         error = string.Empty;
 
-        var exePath = ResolveExecutablePath();
+        var exePath = ResolveExecutablePath(out error);
         if (exePath is null)
         {
-            error = $"{SettingExeName} が見つかりません。";
+            if (string.IsNullOrWhiteSpace(error))
+            {
+                error = $"{SettingExeName} が見つかりません。";
+            }
+
             return false;
         }
 
@@ -66,7 +73,6 @@ public static class SettingAppLauncher
                 return false;
             }
 
-            // 依存 DLL 欠落などで即終了した場合を検出
             if (process.WaitForExit(300) && process.ExitCode != 0)
             {
                 error = $"{SettingExeName} の起動に失敗しました。(exit {process.ExitCode})";
@@ -86,46 +92,31 @@ public static class SettingAppLauncher
         }
     }
 
-    private static string? ResolveExecutablePath()
+    private static string? ResolveExecutablePath(out string error)
     {
+        error = string.Empty;
         var baseDirectory = AppContext.BaseDirectory;
 
-        foreach (var candidate in EnumerateCandidates(baseDirectory))
+        foreach (var candidate in EnumerateSidecarCandidates(baseDirectory))
         {
-            if (IsRunnableSetting(candidate))
+            if (File.Exists(candidate))
             {
                 return candidate;
             }
         }
 
+        if (TryExtractBundled(out var extracted, out error))
+        {
+            return extracted;
+        }
+
         return null;
     }
 
-    /// <summary>
-    /// apphost EXE だけでなく、同梱の managed DLL があることまで確認する。
-    /// </summary>
-    private static bool IsRunnableSetting(string exePath)
+    private static IEnumerable<string> EnumerateSidecarCandidates(string baseDirectory)
     {
-        if (!File.Exists(exePath))
-        {
-            return false;
-        }
-
-        var directory = Path.GetDirectoryName(exePath);
-        if (string.IsNullOrEmpty(directory))
-        {
-            return false;
-        }
-
-        return File.Exists(Path.Combine(directory, SettingDllName));
-    }
-
-    private static IEnumerable<string> EnumerateCandidates(string baseDirectory)
-    {
-        // 配布時 / ビルド出力コピー先: メイン EXE と同じフォルダ
         yield return Path.Combine(baseDirectory, SettingExeName);
 
-        // 開発時: src/MGA-AfterDrive/bin/{Config}/net8.0-windows → src/ へ 4 階層上がる
         foreach (var configuration in new[] { "Debug", "Release" })
         {
             yield return Path.GetFullPath(Path.Combine(
@@ -136,6 +127,83 @@ public static class SettingAppLauncher
                 configuration,
                 "net8.0-windows",
                 SettingExeName));
+        }
+    }
+
+    private static bool TryExtractBundled(out string? exePath, out string error)
+    {
+        exePath = null;
+        error = string.Empty;
+
+        var assembly = Assembly.GetExecutingAssembly();
+        using var stream = assembly.GetManifestResourceStream(BundledResourceName);
+        if (stream is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            var directory = AppPaths.GetBundledAppDirectory();
+            Directory.CreateDirectory(directory);
+            var destination = Path.Combine(directory, SettingExeName);
+
+            if (!NeedsRewrite(destination, stream))
+            {
+                exePath = destination;
+                return true;
+            }
+
+            stream.Position = 0;
+            var tempPath = destination + ".tmp";
+            using (var output = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None))
+            {
+                stream.CopyTo(output);
+            }
+
+            if (File.Exists(destination))
+            {
+                File.Delete(destination);
+            }
+
+            File.Move(tempPath, destination);
+            exePath = destination;
+            return true;
+        }
+        catch (Exception ex) when (
+            ex is IOException
+                or UnauthorizedAccessException
+                or NotSupportedException)
+        {
+            error = $"埋め込み設定アプリの展開に失敗しました: {ex.Message}";
+            return false;
+        }
+    }
+
+    private static bool NeedsRewrite(string destination, Stream bundled)
+    {
+        if (!File.Exists(destination))
+        {
+            return true;
+        }
+
+        try
+        {
+            var existingInfo = new FileInfo(destination);
+            if (existingInfo.Length != bundled.Length)
+            {
+                return true;
+            }
+
+            bundled.Position = 0;
+            var bundledHash = SHA256.HashData(bundled);
+            bundled.Position = 0;
+            var existingHash = SHA256.HashData(File.ReadAllBytes(destination));
+            return !bundledHash.AsSpan().SequenceEqual(existingHash);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return true;
         }
     }
 }

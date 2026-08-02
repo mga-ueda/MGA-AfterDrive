@@ -9,12 +9,6 @@ namespace MGA_AfterDrive.Setting.IO;
 /// </summary>
 public static class DelayEntryStore
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-    };
-
     public static string GetStoreDirectory() => AppPaths.GetStoreDirectory();
 
     public static string GetStoreFilePath() => AppPaths.GetDelayEntriesFilePath();
@@ -33,7 +27,7 @@ public static class DelayEntryStore
             return Array.Empty<DelayEntry>();
         }
 
-        var entries = JsonSerializer.Deserialize<List<DelayEntry>>(json, JsonOptions);
+        var entries = JsonSerializer.Deserialize<List<DelayEntry>>(json, AppJson.Indented);
         return entries ?? [];
     }
 
@@ -55,7 +49,7 @@ public static class DelayEntryStore
             })
             .ToList();
 
-        var json = JsonSerializer.Serialize(payload, JsonOptions);
+        var json = JsonSerializer.Serialize(payload, AppJson.Indented);
         File.WriteAllText(GetStoreFilePath(), json);
     }
 }

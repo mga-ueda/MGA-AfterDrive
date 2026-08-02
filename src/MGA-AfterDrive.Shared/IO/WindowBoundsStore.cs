@@ -8,12 +8,6 @@ namespace MGA_AfterDrive.IO;
 /// </summary>
 public static class WindowBoundsStore
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-    };
-
     private sealed class WindowBoundsData
     {
         public int X { get; set; }
@@ -95,7 +89,7 @@ public static class WindowBoundsStore
 
         var directory = AppPaths.GetStoreDirectory();
         Directory.CreateDirectory(directory);
-        File.WriteAllText(GetStoreFilePath(), JsonSerializer.Serialize(store, JsonOptions));
+        File.WriteAllText(GetStoreFilePath(), JsonSerializer.Serialize(store, AppJson.Indented));
     }
 
     private static bool TryRead(out StoreFile store)
@@ -115,7 +109,7 @@ public static class WindowBoundsStore
                 return false;
             }
 
-            var loaded = JsonSerializer.Deserialize<StoreFile>(json, JsonOptions);
+            var loaded = JsonSerializer.Deserialize<StoreFile>(json, AppJson.Indented);
             if (loaded?.Windows is null)
             {
                 return false;

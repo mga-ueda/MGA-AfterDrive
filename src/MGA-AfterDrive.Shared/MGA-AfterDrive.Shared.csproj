@@ -4,8 +4,6 @@
     <TargetFramework>net8.0-windows</TargetFramework>
     <RootNamespace>MGA_AfterDrive</RootNamespace>
     <AssemblyName>MGA-AfterDrive.Shared</AssemblyName>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
     <UseWindowsForms>true</UseWindowsForms>
   </PropertyGroup>
 

@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using System.Diagnostics;
 using MGA_AfterDrive.Forms;
 using MGA_AfterDrive.IO;
 using MGA_AfterDrive.Setting.IO;
@@ -873,25 +872,12 @@ public partial class MainForm : AppForm
                 break;
             }
 
-            SetTitleStatus($"Test Run {FormatCountdown(remaining)} - {fileName}");
+            SetTitleStatus($"Test Run {TimeDisplay.FormatCountdown(remaining)} - {fileName}");
             var delay = remaining < TimeSpan.FromMilliseconds(250)
                 ? remaining
                 : TimeSpan.FromMilliseconds(250);
             await Task.Delay(delay);
         }
-    }
-
-    private static string FormatCountdown(TimeSpan remaining)
-    {
-        if (remaining < TimeSpan.Zero)
-        {
-            remaining = TimeSpan.Zero;
-        }
-
-        var totalSeconds = (int)Math.Ceiling(remaining.TotalSeconds);
-        var minutes = totalSeconds / 60;
-        var seconds = totalSeconds % 60;
-        return $"{minutes:00}:{seconds:00}";
     }
 
     private void SetTitleStatus(string? status)
@@ -996,21 +982,11 @@ public partial class MainForm : AppForm
             return;
         }
 
-        try
-        {
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = filePath,
-                Arguments = option,
-                UseShellExecute = true,
-                WorkingDirectory = Path.GetDirectoryName(filePath) ?? Environment.CurrentDirectory,
-            });
-        }
-        catch (Exception ex)
+        if (!ProcessLaunch.TryStart(filePath, option, out var launchError))
         {
             MessageBox.Show(
                 this,
-                $"テスト実行に失敗しました。{Environment.NewLine}{ex.Message}",
+                $"テスト実行に失敗しました。{Environment.NewLine}{launchError}",
                 AppInfo.ProductName,
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);

@@ -18,7 +18,8 @@ public static class ManagedAppTerminator
 
         var targets = entries
             .Where(DelayEntryRestartPolicy.ShouldManage)
-            .GroupBy(entry => NormalizePath(entry.Path), StringComparer.OrdinalIgnoreCase)
+            .Where(entry => PathUtil.TryNormalize(entry.Path, out _))
+            .GroupBy(entry => PathUtil.Normalize(entry.Path), StringComparer.OrdinalIgnoreCase)
             .Select(group => group.First())
             .ToArray();
 
@@ -41,15 +42,9 @@ public static class ManagedAppTerminator
 
     private static void KillProcessesForPath(string filePath, string label, Action<string> log)
     {
-        var trimmed = filePath.Trim();
-        string targetPath;
-        try
+        if (!PathUtil.TryNormalize(filePath, out var targetPath))
         {
-            targetPath = NormalizePath(trimmed);
-        }
-        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
-        {
-            log($"[ERROR] 無効なパスです ({label}): {ex.Message}");
+            log($"[ERROR] 無効なパスです ({label}): {filePath}");
             return;
         }
 
@@ -141,7 +136,8 @@ public static class ManagedAppTerminator
                 return false;
             }
 
-            if (!string.Equals(NormalizePath(modulePath), targetPath, StringComparison.OrdinalIgnoreCase))
+            if (!PathUtil.TryNormalize(modulePath, out var normalizedModule)
+                || !string.Equals(normalizedModule, targetPath, StringComparison.OrdinalIgnoreCase))
             {
                 detail = $"パス不一致（{modulePath}）";
                 return false;
@@ -161,8 +157,4 @@ public static class ManagedAppTerminator
         }
     }
 
-    private static string NormalizePath(string path)
-    {
-        return Path.GetFullPath(path.Trim());
-    }
 }

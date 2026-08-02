@@ -12,22 +12,22 @@ public static class GoogleDriveStartupProbe
     private static readonly TimeSpan PausePollInterval = TimeSpan.FromMilliseconds(200);
 
     /// <param name="log">ログ出力（タイムスタンプは呼び出し側が付与）。</param>
-    /// <param name="setTitleStatus">ウィンドウタイトル状態。null で解除。</param>
+    /// <param name="setStatusText">ステータスバー表示。null で解除。</param>
     /// <returns>解決できてアクセス可能なとき true。</returns>
     public static async Task<bool> RunAsync(
         Action<string> log,
-        Action<string?> setTitleStatus,
+        Action<string?> setStatusText,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(log);
-        ArgumentNullException.ThrowIfNull(setTitleStatus);
+        ArgumentNullException.ThrowIfNull(setStatusText);
 
         var maxWait = AppSettingsStore.Load().GetMaxWait();
         var succeeded = false;
         try
         {
             log("Google Drive の確認を開始します。");
-            log($"最大待機時間: {FormatDuration(maxWait)}（設定値）。");
+            log($"最大待機時間: {TimeDisplay.FormatDuration(maxWait)}（設定値）。");
 
             if (!GoogleDriveLocator.TryGetMountPath(out var mountPath, out var detail))
             {
@@ -54,13 +54,13 @@ public static class GoogleDriveStartupProbe
             }
             else
             {
-                log($"プロセス {ProcessName} の起動を待機します（最大 {FormatDuration(maxWait)}）。");
+                log($"プロセス {ProcessName} の起動を待機します（最大 {TimeDisplay.FormatDuration(maxWait)}）。");
                 try
                 {
-                    var started = await WaitForProcessAsync(maxWait, setTitleStatus, cancellationToken);
+                    var started = await WaitForProcessAsync(maxWait, setStatusText, cancellationToken);
                     if (!started)
                     {
-                        log($"[ERROR] プロセス {ProcessName} の待機がタイムアウトしました（{FormatDuration(maxWait)}）。");
+                        log($"[ERROR] プロセス {ProcessName} の待機がタイムアウトしました（{TimeDisplay.FormatDuration(maxWait)}）。");
                         return false;
                     }
 
@@ -77,12 +77,12 @@ public static class GoogleDriveStartupProbe
                 }
             }
 
-            log($"アクセスを確認しています: {mountPath}（最大 {FormatDuration(maxWait)}）");
+            log($"アクセスを確認しています: {mountPath}（最大 {TimeDisplay.FormatDuration(maxWait)}）");
 
             bool accessible;
             try
             {
-                accessible = await WaitUntilAccessibleAsync(mountPath, maxWait, setTitleStatus, cancellationToken);
+                accessible = await WaitUntilAccessibleAsync(mountPath, maxWait, setStatusText, cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -101,14 +101,14 @@ public static class GoogleDriveStartupProbe
             }
             else
             {
-                log($"[ERROR] アクセスできません（タイムアウト {FormatDuration(maxWait)}）: {mountPath}");
+                log($"[ERROR] アクセスできません（タイムアウト {TimeDisplay.FormatDuration(maxWait)}）: {mountPath}");
             }
 
             return succeeded;
         }
         finally
         {
-            setTitleStatus(null);
+            setStatusText(null);
             log(succeeded
                 ? "Google Drive の確認が正常に完了しました。"
                 : "Google Drive の確認がエラーで終了しました。");
@@ -117,7 +117,7 @@ public static class GoogleDriveStartupProbe
 
     private static async Task<bool> WaitForProcessAsync(
         TimeSpan maxWait,
-        Action<string?> setTitleStatus,
+        Action<string?> setStatusText,
         CancellationToken cancellationToken)
     {
         var remaining = maxWait;
@@ -133,12 +133,12 @@ public static class GoogleDriveStartupProbe
 
             if (OperationPause.ShouldPause())
             {
-                setTitleStatus($"{ProcessName} 待機を一時停止中（{OperationPause.DescribeReason()}）");
+                setStatusText($"{ProcessName} 待機を一時停止中（{OperationPause.DescribeReason()}）");
                 await Task.Delay(PausePollInterval, cancellationToken);
                 continue;
             }
 
-            setTitleStatus($"{ProcessName} 待機中 {FormatCountdown(remaining)}");
+            setStatusText($"{ProcessName} 待機中 {TimeDisplay.FormatCountdown(remaining)}");
             var slice = remaining < PollInterval ? remaining : PollInterval;
             if (slice > PausePollInterval)
             {
@@ -160,7 +160,7 @@ public static class GoogleDriveStartupProbe
     private static async Task<bool> WaitUntilAccessibleAsync(
         string mountPath,
         TimeSpan maxWait,
-        Action<string?> setTitleStatus,
+        Action<string?> setStatusText,
         CancellationToken cancellationToken)
     {
         var remaining = maxWait;
@@ -181,12 +181,12 @@ public static class GoogleDriveStartupProbe
 
             if (OperationPause.ShouldPause())
             {
-                setTitleStatus($"アクセス確認を一時停止中（{OperationPause.DescribeReason()}）");
+                setStatusText($"アクセス確認を一時停止中（{OperationPause.DescribeReason()}）");
                 await Task.Delay(PausePollInterval, cancellationToken);
                 continue;
             }
 
-            setTitleStatus($"アクセス確認中 {FormatCountdown(remaining)}");
+            setStatusText($"アクセス確認中 {TimeDisplay.FormatCountdown(remaining)}");
             var slice = remaining < PollInterval ? remaining : PollInterval;
             if (slice > PausePollInterval)
             {
@@ -201,29 +201,6 @@ public static class GoogleDriveStartupProbe
 
             remaining -= slice;
         }
-    }
-
-    private static string FormatCountdown(TimeSpan remaining)
-    {
-        if (remaining < TimeSpan.Zero)
-        {
-            remaining = TimeSpan.Zero;
-        }
-
-        var totalSeconds = (int)Math.Ceiling(remaining.TotalSeconds);
-        var minutes = totalSeconds / 60;
-        var seconds = totalSeconds % 60;
-        return $"{minutes:00}:{seconds:00}";
-    }
-
-    private static string FormatDuration(TimeSpan duration)
-    {
-        if (duration.TotalMinutes >= 1 && duration.Seconds == 0)
-        {
-            return $"{(int)duration.TotalMinutes} 分";
-        }
-
-        return $"{duration.TotalSeconds:0} 秒";
     }
 
     internal static bool IsProcessRunning()

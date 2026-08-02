@@ -7,12 +7,6 @@ namespace MGA_AfterDrive.IO;
 /// </summary>
 public static class DelayEntriesReader
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        PropertyNameCaseInsensitive = true,
-    };
-
     public static IReadOnlyList<DelayEntryRecord> Load()
     {
         var path = AppPaths.GetDelayEntriesFilePath();
@@ -29,7 +23,7 @@ public static class DelayEntriesReader
                 return Array.Empty<DelayEntryRecord>();
             }
 
-            var entries = JsonSerializer.Deserialize<List<DelayEntryRecord>>(json, JsonOptions);
+            var entries = JsonSerializer.Deserialize<List<DelayEntryRecord>>(json, AppJson.Compact);
             return entries ?? [];
         }
         catch (Exception ex) when (

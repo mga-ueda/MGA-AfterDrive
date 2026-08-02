@@ -23,7 +23,7 @@ Google Drive が一時的に切断されたときは、Drive 上のアプリを�
 ## 動作環境
 
 - Windows 10 / 11
-- [.NET 8](https://dotnet.microsoft.com/download/dotnet/8.0) Desktop Runtime（ビルド時は SDK）
+- [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)（フレームワーク依存の単一 EXE）
 - [Google Drive for desktop](https://www.google.com/drive/download/)
 
 ## 使い方
@@ -43,21 +43,42 @@ Google Drive が一時的に切断されたときは、Drive 上のアプリを�
 %LocalAppData%\MGA\MGA AfterDrive\
   delay-entries.json   … 起動エントリ
   settings.json        … 最大待機時間・トレイ起動など
+  app\                 … 公開版で展開される Setting（自動）
 ```
 
-## ビルド
+## 開発ビルド
 
 ```powershell
-dotnet build src\MGA-AfterDrive\MGA-AfterDrive.csproj -c Release
+dotnet build src\MGA-AfterDrive\MGA-AfterDrive.csproj -c Debug
 ```
 
 出力先の例:
 
 ```
-src\MGA-AfterDrive\bin\Release\net8.0-windows\
+src\MGA-AfterDrive\bin\Debug\net8.0-windows\
 ```
 
 メイン EXE と同じフォルダに Setting もコピーされます。
+
+## リリース（単一 EXE）
+
+配布物は **`MGA-AfterDrive.exe` のみ**です。Setting は EXE 内に埋め込まれ、初回起動時に `%LocalAppData%\MGA\MGA AfterDrive\app\` へ展開されます。
+
+```powershell
+.\publish.ps1
+```
+
+または:
+
+```powershell
+dotnet publish src\MGA-AfterDrive\MGA-AfterDrive.csproj `
+  -c Release -r win-x64 --self-contained false `
+  -p:PublishSingleFile=true -o publish
+```
+
+出力: `publish\MGA-AfterDrive.exe`
+
+完全オフライン配布にする場合は `--self-contained true` を付けてください（ファイルサイズが増えます）。
 
 ## ライセンス
 

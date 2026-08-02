@@ -1,4 +1,4 @@
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using MGA_AfterDrive.Forms;
 using MGA_AfterDrive.IO;
 using MGA_AfterDrive.Native;
@@ -172,7 +172,7 @@ public partial class MainForm : AppForm
         statusLabel.ForeColor = AppTheme.Foreground;
         statusBar.Paint += StatusBar_Paint;
         ApplyTrayMenuTheme();
-        SetTitleStatus(null);
+        SetStatusText(null);
 
         if (WindowState == FormWindowState.Maximized)
         {
@@ -338,7 +338,7 @@ public partial class MainForm : AppForm
         _logBufferDuringLicense.Clear();
         OperationPause.SetLicenseViewActive(true);
         SetLicenseLinkText("Return");
-        SetTitleStatus($"一時停止中（{OperationPause.DescribeReason()}）");
+        SetStatusText($"一時停止中（{OperationPause.DescribeReason()}）");
 
         try
         {
@@ -381,7 +381,7 @@ public partial class MainForm : AppForm
 
         // 待機ループが動いていれば直後に正しい表示へ上書きする。
         // 動いていなくても「一時停止中（ライセンス表示）」を残さない。
-        SetTitleStatus(null);
+        SetStatusText(null);
     }
 
     private void SetLicenseLinkText(string text)
@@ -401,7 +401,7 @@ public partial class MainForm : AppForm
         try
         {
             var driveOk = await GoogleDriveStartupProbe
-                .RunAsync(AppendLog, SetTitleStatus, _lifetimeCts.Token)
+                .RunAsync(AppendLog, SetStatusText, _lifetimeCts.Token)
                 .ConfigureAwait(true);
 
             if (!driveOk)
@@ -427,7 +427,7 @@ public partial class MainForm : AppForm
             var launchToken = _launchCts.Token;
 
             await DelayedLaunchRunner
-                .RunAsync(entries, AppendLog, SetTitleStatus, launchToken)
+                .RunAsync(entries, AppendLog, SetStatusText, launchToken)
                 .ConfigureAwait(true);
 
             Interlocked.Exchange(ref _initialLaunchCompleted, 1);
@@ -439,7 +439,7 @@ public partial class MainForm : AppForm
                     TimeSpan.FromMilliseconds(200),
                     remaining => $"トレイ格納まで {Math.Ceiling(remaining.TotalSeconds):0} 秒",
                     () => $"トレイ格納を一時停止中（{OperationPause.DescribeReason()}）",
-                    SetTitleStatus,
+                    SetStatusText,
                     _lifetimeCts.Token)
                 .ConfigureAwait(true);
 
@@ -462,7 +462,7 @@ public partial class MainForm : AppForm
         {
             if (!OperationPause.IsLicenseViewActive)
             {
-                SetTitleStatus(null);
+                SetStatusText(null);
             }
         }
     }
@@ -642,7 +642,7 @@ public partial class MainForm : AppForm
             var token = _launchCts.Token;
 
             await DelayedLaunchRunner
-                .RunAsync(launchEntries, AppendLog, SetTitleStatus, token, respectEntryDelay)
+                .RunAsync(launchEntries, AppendLog, SetStatusText, token, respectEntryDelay)
                 .ConfigureAwait(true);
 
             Interlocked.Exchange(ref _initialLaunchCompleted, 1);
@@ -660,7 +660,7 @@ public partial class MainForm : AppForm
             _recoveryGate.Release();
             if (!OperationPause.IsLicenseViewActive)
             {
-                SetTitleStatus(null);
+                SetStatusText(null);
             }
         }
     }
@@ -770,7 +770,7 @@ public partial class MainForm : AppForm
     /// ステータスバー右寄せのカウントダウン／状態表示。タイトルバーは変更しない。
     /// BeginInvoke の遅延適用で古い一時停止表示が復活しないよう世代番号で打ち消す。
     /// </summary>
-    private void SetTitleStatus(string? status)
+    private void SetStatusText(string? status)
     {
         if (IsDisposed || Disposing)
         {

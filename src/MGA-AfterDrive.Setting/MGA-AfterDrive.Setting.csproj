@@ -5,13 +5,7 @@
     <TargetFramework>net8.0-windows</TargetFramework>
     <RootNamespace>MGA_AfterDrive.Setting</RootNamespace>
     <AssemblyName>MGA-AfterDrive.Setting</AssemblyName>
-    <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Version>1.0.0</Version>
-    <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <FileVersion>1.0.0.0</FileVersion>
-    <InformationalVersion>1.0.0</InformationalVersion>
     <Product>MGA AfterDrive Setting</Product>
     <AssemblyTitle>MGA AfterDrive Setting</AssemblyTitle>
     <ApplicationIcon>..\..\assets\app.ico</ApplicationIcon>
@@ -22,8 +16,17 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="..\..\licenses\WinBlur-LICENSE.txt" Link="licenses\WinBlur-LICENSE.txt" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="..\..\THIRD_PARTY_NOTICES.md" Link="THIRD_PARTY_NOTICES.md" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\licenses\WinBlur-LICENSE.txt" Link="licenses\WinBlur-LICENSE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" />
+    <Content Include="..\..\THIRD_PARTY_NOTICES.md" Link="THIRD_PARTY_NOTICES.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" />
   </ItemGroup>
+
+  <!-- 埋め込み用に publish したときも EXE 以外を残さない -->
+  <Target Name="CleanupSettingSingleFilePublishDir" AfterTargets="Publish" Condition="'$(PublishSingleFile)' == 'true'">
+    <ItemGroup>
+      <_SettingPublishExtras Include="$(PublishDir)**\*" Exclude="$(PublishDir)MGA-AfterDrive.Setting.exe" />
+    </ItemGroup>
+    <Delete Files="@(_SettingPublishExtras)" TreatErrorsAsWarnings="true" />
+    <RemoveDir Directories="$(PublishDir)licenses" Condition="Exists('$(PublishDir)licenses')" />
+  </Target>
 
 </Project>

@@ -5,7 +5,7 @@ namespace MGA_AfterDrive.IO;
 /// </summary>
 public sealed class AppSettings
 {
-    /// <summary>既定の最大待機（秒）。従来の 3 分相当。</summary>
+    /// <summary>既定の最大待機（秒）。3 分。</summary>
     public const int DefaultMaxWaitSeconds = 180;
 
     public const int MinMaxWaitSeconds = 1;

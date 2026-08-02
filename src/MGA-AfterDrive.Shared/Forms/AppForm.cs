@@ -102,26 +102,6 @@ public class AppForm : Form
     }
 
     /// <summary>
-    /// トレイなどから初めてウィンドウを見せるときに呼ぶ。
-    /// Acrylic 適用前に呼ぶと不透明が一瞬見えるため、適用後に <see cref="MarkRevealed"/> する方が安全。
-    /// </summary>
-    protected void RevealNow()
-    {
-        if (IsDisposed)
-        {
-            return;
-        }
-
-        Opacity = 1;
-        if (IsHandleCreated)
-        {
-            AcrylicBackdrop.ClearLayeredStyle(Handle);
-        }
-
-        _revealed = true;
-    }
-
-    /// <summary>
     /// 可視化シーケンス完了を記録する（Opacity / Acrylic は呼び出し側で済ませている前提）。
     /// </summary>
     protected void MarkRevealed()
