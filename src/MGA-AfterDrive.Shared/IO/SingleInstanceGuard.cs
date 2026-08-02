@@ -1,6 +1,16 @@
 namespace MGA_AfterDrive.IO;
 
 /// <summary>
+/// 名前付き Mutex による単一インスタンス制御の結果。
+/// </summary>
+public enum SingleInstanceAcquireResult
+{
+    Acquired,
+    AlreadyRunning,
+    Failed,
+}
+
+/// <summary>
 /// 名前付き Mutex による単一インスタンス制御。
 /// </summary>
 public sealed class SingleInstanceGuard : IDisposable
@@ -17,15 +27,29 @@ public sealed class SingleInstanceGuard : IDisposable
 
     /// <summary>
     /// 他インスタンスがいなければ所有権を取得する。
-    /// 取得できない（既に起動中）ときは false。
     /// </summary>
-    public static bool TryAcquire(string mutexName, out SingleInstanceGuard? guard)
+    public static SingleInstanceAcquireResult TryAcquire(
+        string mutexName,
+        out SingleInstanceGuard? guard,
+        out string? error)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(mutexName);
 
-        var mutex = new Mutex(false, mutexName);
-        var hasHandle = false;
+        guard = null;
+        error = null;
 
+        Mutex mutex;
+        try
+        {
+            mutex = new Mutex(false, mutexName);
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or WaitHandleCannotBeOpenedException or IOException)
+        {
+            error = ex.Message;
+            return SingleInstanceAcquireResult.Failed;
+        }
+
+        var hasHandle = false;
         try
         {
             try
@@ -41,19 +65,18 @@ public sealed class SingleInstanceGuard : IDisposable
         catch (Exception ex) when (ex is UnauthorizedAccessException or WaitHandleCannotBeOpenedException)
         {
             mutex.Dispose();
-            guard = null;
-            return false;
+            error = ex.Message;
+            return SingleInstanceAcquireResult.Failed;
         }
 
         if (!hasHandle)
         {
             mutex.Dispose();
-            guard = null;
-            return false;
+            return SingleInstanceAcquireResult.AlreadyRunning;
         }
 
         guard = new SingleInstanceGuard(mutex, hasHandle: true);
-        return true;
+        return SingleInstanceAcquireResult.Acquired;
     }
 
     public void Dispose()

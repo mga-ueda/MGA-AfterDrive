@@ -23,8 +23,13 @@ public static class DelayEntriesReader
                 return Array.Empty<DelayEntryRecord>();
             }
 
-            var entries = JsonSerializer.Deserialize<List<DelayEntryRecord>>(json, AppJson.Compact);
-            return entries ?? [];
+            var entries = JsonSerializer.Deserialize<List<DelayEntryRecord>>(json, AppJson.Compact) ?? [];
+            if (!DelayEntriesJson.HasRestartProperty(json))
+            {
+                DelayEntriesJson.TryMigrateDriveRestart(entries);
+            }
+
+            return entries;
         }
         catch (Exception ex) when (
             ex is IOException

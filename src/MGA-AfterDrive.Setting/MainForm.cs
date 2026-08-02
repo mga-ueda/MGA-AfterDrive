@@ -19,6 +19,8 @@ public partial class MainForm : AppForm
     private bool _isLoading;
     private bool _allowCloseWithoutPrompt;
     private bool _fittingWindow;
+    private bool _legacyMissingRestartProperty;
+    private string? _pathBeforeEdit;
     private ToolTip? _optionsToolTip;
 
     public MainForm()
@@ -28,6 +30,7 @@ public partial class MainForm : AppForm
         entryGrid.DataSource = _entries;
         entryGrid.ColumnHeaderMouseClick += EntryGrid_ColumnHeaderMouseClick;
         entryGrid.CellPainting += EntryGrid_CellPainting;
+        entryGrid.CellBeginEdit += EntryGrid_CellBeginEdit;
         entryGrid.EditingControlShowing += EntryGrid_EditingControlShowing;
         _entries.ListChanged += Entries_ListChanged;
     }
@@ -127,14 +130,16 @@ public partial class MainForm : AppForm
             startMinimizedCheckBox.Checked = settings.StartMinimizedToTray;
 
             _entries.Clear();
-            foreach (var entry in DelayEntryStore.Load())
+            var loaded = DelayEntryStore.Load(out var missingRestartProperty, out var migratedDriveRestart);
+            _legacyMissingRestartProperty = missingRestartProperty;
+            foreach (var entry in loaded)
             {
-                ApplyRestartFromPath(entry);
+                // 通常は保存値を尊重。Restart 未定義の旧 JSON のみ Drive 配下を ON に補完する。
                 _entries.Add(entry);
             }
 
             ApplyDefaultSort();
-            SetDirty(false);
+            SetDirty(migratedDriveRestart);
         }
         catch (Exception ex)
         {
@@ -426,7 +431,6 @@ public partial class MainForm : AppForm
 
         var direction = GetSortDirectionForColumn(e.ColumnIndex);
         var sidePadding = LogicalToDeviceUnits(6);
-        var glyphReserve = direction == SortOrder.None ? 0 : GetSortGlyphReserveWidth();
 
         e.Paint(
             e.CellBounds,
@@ -435,16 +439,12 @@ public partial class MainForm : AppForm
             | DataGridViewPaintParts.ContentBackground);
 
         var text = entryGrid.Columns[e.ColumnIndex].HeaderText;
+        // テキストはセル全体に描画し、矢印は右端に重ねる（幅不足で "Del..." にしない）
         var textBounds = new Rectangle(
             e.CellBounds.X + sidePadding,
             e.CellBounds.Y,
-            Math.Max(0, e.CellBounds.Width - (sidePadding * 2) - glyphReserve),
+            Math.Max(0, e.CellBounds.Width - (sidePadding * 2)),
             e.CellBounds.Height);
-
-        if (direction != SortOrder.None)
-        {
-            DrawSortGlyph(e.Graphics, e.CellBounds, direction);
-        }
 
         TextRenderer.DrawText(
             e.Graphics,
@@ -453,6 +453,11 @@ public partial class MainForm : AppForm
             textBounds,
             e.CellStyle.ForeColor,
             HeaderTextFormat);
+
+        if (direction != SortOrder.None)
+        {
+            DrawSortGlyph(e.Graphics, e.CellBounds, direction);
+        }
 
         e.Handled = true;
     }
@@ -636,9 +641,20 @@ public partial class MainForm : AppForm
                 }
             }
 
-            heightClamped = ClientSize.Height >= maxClientH
-                && entryGrid.ClientSize.Height < idealGridHeight;
-            entryGrid.ScrollBars = heightClamped ? ScrollBars.Vertical : ScrollBars.None;
+            // 画面クランプ以外でも、グリッドが足りなければ縦スクロールを出す
+            var needsVerticalScroll = entryGrid.ClientSize.Height < idealGridHeight;
+            entryGrid.ScrollBars = needsVerticalScroll ? ScrollBars.Vertical : ScrollBars.None;
+            if (needsVerticalScroll)
+            {
+                var withScroll = Math.Min(
+                    Math.Max(ClientSize.Width, columnsWidth + gridChrome + SystemInformation.VerticalScrollBarWidth),
+                    maxClientW);
+                if (withScroll != ClientSize.Width)
+                {
+                    ClientSize = new Size(withScroll, ClientSize.Height);
+                }
+            }
+
             EnsureOnScreen();
         }
         finally
@@ -780,6 +796,17 @@ public partial class MainForm : AppForm
         });
     }
 
+    private void EntryGrid_CellBeginEdit(object? sender, DataGridViewCellCancelEventArgs e)
+    {
+        _pathBeforeEdit = null;
+        if (e.RowIndex < 0 || e.RowIndex >= _entries.Count || e.ColumnIndex != pathColumn.Index)
+        {
+            return;
+        }
+
+        _pathBeforeEdit = _entries[e.RowIndex].Path;
+    }
+
     private void EntryGrid_CellEndEdit(object? sender, DataGridViewCellEventArgs e)
     {
         if (e.RowIndex < 0 || e.RowIndex >= _entries.Count)
@@ -790,6 +817,8 @@ public partial class MainForm : AppForm
         var entry = _entries[e.RowIndex];
         if (e.ColumnIndex == pathColumn.Index && !string.IsNullOrWhiteSpace(entry.Path))
         {
+            var restartBefore = entry.Restart;
+            var wasUnderDrive = GoogleDriveLocator.IsPathUnderGoogleDrive(_pathBeforeEdit);
             try
             {
                 var fullPath = Path.GetFullPath(entry.Path.Trim());
@@ -801,21 +830,31 @@ public partial class MainForm : AppForm
                 // 不正パスはそのまま残し、保存時や Test Run で検出する
             }
 
-            ApplyRestartFromPath(entry);
+            ApplyRestartFromPath(entry, wasUnderDrive);
+            if (entry.Restart != restartBefore)
+            {
+                SetDirty(true);
+            }
         }
 
+        _pathBeforeEdit = null;
         OptimizeColumnWidths();
     }
 
     /// <summary>
     /// Path が Google Drive マウント配下なら Restart を自動 ON。
-    /// Drive 外の場合はユーザー設定を維持する（手動でオンオフ可能）。
+    /// Drive 配下から外へ変わったときは OFF に戻す（ローカル手動 ON は維持）。
     /// </summary>
-    private static void ApplyRestartFromPath(DelayEntry entry)
+    private static void ApplyRestartFromPath(DelayEntry entry, bool wasUnderDrive = false)
     {
-        if (GoogleDriveLocator.IsPathUnderGoogleDrive(entry.Path))
+        var underDrive = GoogleDriveLocator.IsPathUnderGoogleDrive(entry.Path);
+        if (underDrive)
         {
             entry.Restart = true;
+        }
+        else if (wasUnderDrive)
+        {
+            entry.Restart = false;
         }
     }
 
@@ -845,15 +884,21 @@ public partial class MainForm : AppForm
         deleteMenuItem.Enabled = hasSelection;
     }
 
-    private void TestRunMenuItem_Click(object? sender, EventArgs e)
+    private async void TestRunMenuItem_Click(object? sender, EventArgs e)
     {
+        var skipped = 0;
         foreach (var entry in GetSelectedEntries())
         {
-            _ = TryTestRunAsync(entry);
+            if (await TryTestRunAsync(entry) == TestRunOutcome.SkippedAlreadyRunning)
+            {
+                skipped++;
+            }
         }
+
+        NotifySkippedAlreadyRunning(skipped);
     }
 
-    private void StartAllButton_Click(object? sender, EventArgs e)
+    private async void StartAllButton_Click(object? sender, EventArgs e)
     {
         entryGrid.EndEdit();
 
@@ -873,10 +918,35 @@ public partial class MainForm : AppForm
             return;
         }
 
-        foreach (var entry in _entries.ToList())
+        var skipped = 0;
+        var tasks = _entries.ToList().Select(TryTestRunAsync).ToArray();
+        var outcomes = await Task.WhenAll(tasks);
+        foreach (var outcome in outcomes)
         {
-            _ = TryTestRunAsync(entry);
+            if (outcome == TestRunOutcome.SkippedAlreadyRunning)
+            {
+                skipped++;
+            }
         }
+
+        NotifySkippedAlreadyRunning(skipped);
+    }
+
+    private void NotifySkippedAlreadyRunning(int skippedCount)
+    {
+        if (skippedCount <= 0 || IsDisposed || Disposing)
+        {
+            return;
+        }
+
+        MessageBox.Show(
+            this,
+            skippedCount == 1
+                ? "起動済みのためスキップしました。"
+                : $"{skippedCount} 件は起動済みのためスキップしました。",
+            AppInfo.ProductName,
+            MessageBoxButtons.OK,
+            MessageBoxIcon.Information);
     }
 
     private void DeleteMenuItem_Click(object? sender, EventArgs e)
@@ -930,7 +1000,18 @@ public partial class MainForm : AppForm
                 MaxWaitSeconds = maxWaitSeconds,
                 StartMinimizedToTray = startMinimizedCheckBox.Checked,
             });
+
+            // 旧 JSON（Restart 未定義）を保存する前に、マウントが使える今もう一度 Drive を ON にする
+            if (_legacyMissingRestartProperty)
+            {
+                foreach (var entry in _entries)
+                {
+                    ApplyRestartFromPath(entry);
+                }
+            }
+
             DelayEntryStore.Save(_entries);
+            _legacyMissingRestartProperty = false;
             SetDirty(false);
             MessageBox.Show(
                 this,
@@ -1029,7 +1110,15 @@ public partial class MainForm : AppForm
         return rows;
     }
 
-    private async Task TryTestRunAsync(DelayEntry entry)
+    private enum TestRunOutcome
+    {
+        Started,
+        SkippedAlreadyRunning,
+        Failed,
+        Cancelled,
+    }
+
+    private async Task<TestRunOutcome> TryTestRunAsync(DelayEntry entry)
     {
         // 待機中の編集影響を避けるため、開始時点の値を使う
         var delaySeconds = Math.Max(0, entry.Delay);
@@ -1047,7 +1136,7 @@ public partial class MainForm : AppForm
                 AppInfo.ProductName,
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
-            return;
+            return TestRunOutcome.Failed;
         }
 
         if (!ExecutableFileFilter.IsExecutable(filePath))
@@ -1058,7 +1147,7 @@ public partial class MainForm : AppForm
                 AppInfo.ProductName,
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
-            return;
+            return TestRunOutcome.Failed;
         }
 
         if (delaySeconds > 0)
@@ -1080,12 +1169,12 @@ public partial class MainForm : AppForm
 
         if (IsDisposed || Disposing)
         {
-            return;
+            return TestRunOutcome.Cancelled;
         }
 
         if (ProcessExecutable.IsRunning(filePath))
         {
-            return;
+            return TestRunOutcome.SkippedAlreadyRunning;
         }
 
         if (!ProcessLaunch.TryStart(filePath, option, out var launchError))
@@ -1096,7 +1185,10 @@ public partial class MainForm : AppForm
                 AppInfo.ProductName,
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
+            return TestRunOutcome.Failed;
         }
+
+        return TestRunOutcome.Started;
     }
 
     private bool TryValidateEntries(out string error)

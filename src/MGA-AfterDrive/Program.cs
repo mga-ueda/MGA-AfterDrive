@@ -16,13 +16,28 @@ static class Program
         ApplicationConfiguration.Initialize();
         Application.SetDefaultFont(AppFonts.UI);
 
-        if (!SingleInstanceGuard.TryAcquire(SingleInstanceMutexName, out var singleInstance))
+        var acquire = SingleInstanceGuard.TryAcquire(
+            SingleInstanceMutexName,
+            out var singleInstance,
+            out var acquireError);
+
+        if (acquire == SingleInstanceAcquireResult.AlreadyRunning)
         {
             MessageBox.Show(
                 "MGA AfterDrive は既に起動しています。\nタスクトレイを確認してください。",
                 AppInfo.ProductName,
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information);
+            return;
+        }
+
+        if (acquire != SingleInstanceAcquireResult.Acquired || singleInstance is null)
+        {
+            MessageBox.Show(
+                $"起動状態を確認できませんでした。{Environment.NewLine}{acquireError}",
+                AppInfo.ProductName,
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
             return;
         }
 

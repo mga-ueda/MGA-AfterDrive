@@ -10,6 +10,7 @@ public static class ProcessExecutable
     /// <summary>
     /// 指定パスの実行ファイルが既に起動しているか。
     /// このアプリから起動したかどうかに依存しない。
+    /// MainModule が取れないプロセスは「起動済み」とみなさない（誤スキップ防止）。
     /// </summary>
     public static bool IsRunning(string? filePath)
     {
@@ -43,7 +44,7 @@ public static class ProcessExecutable
                     continue;
                 }
 
-                if (MatchesPath(process, targetPath, out _))
+                if (MatchesPath(process, targetPath, allowNameFallback: false, out _))
                 {
                     return true;
                 }
@@ -62,9 +63,16 @@ public static class ProcessExecutable
 
     /// <summary>
     /// プロセスが対象実行ファイルと一致するか。
-    /// MainModule が読めない場合（昇格プロセス等）はプロセス名一致として扱う。
     /// </summary>
-    public static bool MatchesPath(Process process, string targetPath, out string detail)
+    /// <param name="allowNameFallback">
+    /// true のとき、MainModule が読めない場合はプロセス名一致として扱う（強制終了向け）。
+    /// false のときはパス確認できたときだけ一致とする（起動スキップ向け）。
+    /// </param>
+    public static bool MatchesPath(
+        Process process,
+        string targetPath,
+        bool allowNameFallback,
+        out string detail)
     {
         ArgumentNullException.ThrowIfNull(process);
         ArgumentException.ThrowIfNullOrWhiteSpace(targetPath);
@@ -93,8 +101,14 @@ public static class ProcessExecutable
                 or System.ComponentModel.Win32Exception
                 or NotSupportedException)
         {
-            detail = $"MainModule を取得できません（{ex.GetType().Name}）。プロセス名で照合します";
-            return true;
+            detail = $"MainModule を取得できません（{ex.GetType().Name}）";
+            if (allowNameFallback)
+            {
+                detail += "。プロセス名で照合します";
+                return true;
+            }
+
+            return false;
         }
     }
 }

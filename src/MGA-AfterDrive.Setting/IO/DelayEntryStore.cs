@@ -13,8 +13,17 @@ public static class DelayEntryStore
 
     public static string GetStoreFilePath() => AppPaths.GetDelayEntriesFilePath();
 
-    public static IReadOnlyList<DelayEntry> Load()
+    public static IReadOnlyList<DelayEntry> Load() => Load(out _, out _);
+
+    /// <summary>
+    /// エントリを読み込む。
+    /// </summary>
+    /// <param name="missingRestartProperty">JSON に Restart プロパティが無い旧形式のとき true。</param>
+    /// <param name="migratedDriveRestart">Drive 配下の Restart を補完できたとき true。</param>
+    public static IReadOnlyList<DelayEntry> Load(out bool missingRestartProperty, out bool migratedDriveRestart)
     {
+        missingRestartProperty = false;
+        migratedDriveRestart = false;
         var path = GetStoreFilePath();
         if (!File.Exists(path))
         {
@@ -27,8 +36,25 @@ public static class DelayEntryStore
             return Array.Empty<DelayEntry>();
         }
 
-        var entries = JsonSerializer.Deserialize<List<DelayEntry>>(json, AppJson.Indented);
-        return entries ?? [];
+        var entries = JsonSerializer.Deserialize<List<DelayEntry>>(json, AppJson.Indented) ?? [];
+        if (DelayEntriesJson.HasRestartProperty(json))
+        {
+            return entries;
+        }
+
+        missingRestartProperty = true;
+
+        // Restart 導入前の設定: Drive 配下だけ自動 ON（明示 false は存在しない）
+        foreach (var entry in entries)
+        {
+            if (!entry.Restart && GoogleDriveLocator.IsPathUnderGoogleDrive(entry.Path))
+            {
+                entry.Restart = true;
+                migratedDriveRestart = true;
+            }
+        }
+
+        return entries;
     }
 
     public static void Save(IEnumerable<DelayEntry> entries)

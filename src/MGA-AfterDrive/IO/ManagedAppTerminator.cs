@@ -84,7 +84,11 @@ public static class ManagedAppTerminator
                         continue;
                     }
 
-                    if (!ProcessExecutable.MatchesPath(process, targetPath, out var matchDetail))
+                    if (!ProcessExecutable.MatchesPath(
+                            process,
+                            targetPath,
+                            allowNameFallback: true,
+                            out var matchDetail))
                     {
                         log($"スキップ PID {process.Id}（{label}）: {matchDetail}");
                         continue;
