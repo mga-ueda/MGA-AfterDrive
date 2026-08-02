@@ -16,8 +16,8 @@ UI・フォーム・コントロールを追加・変更する前に、本指針
 ## アプリ名 / バージョン
 
 - 正式名称は **MGA G Delay Run**（設定アプリは **MGA G Delay Run Setting**）。
-- 現在のバージョンは **0.0.1**。
-- ウィンドウタイトルの表記は `正式名称 - Version 0.0.1` とする。
+- 現在のバージョンは **1.0.0**。
+- ウィンドウタイトルの表記は `正式名称 - Version 1.0.0` とする。
 - リポジトリ名やアセンブリ名（`MGA-G-Delay-Run` など）と混同しない。
 - バージョン番号を上げるときは `.csproj` の `Version` / `AssemblyVersion` / `FileVersion` / `InformationalVersion` を揃えて更新する。
 

@@ -315,7 +315,7 @@ partial class MainForm
         Name = "MainForm";
         SizeGripStyle = SizeGripStyle.Hide;
         StartPosition = FormStartPosition.Manual;
-        Text = "MGA G Delay Run Setting - Version 0.0.1";
+        Text = "MGA G Delay Run Setting - Version 1.0.0";
         DragDrop += EntryGrid_DragDrop;
         DragEnter += EntryGrid_DragEnter;
         rootLayout.ResumeLayout(false);

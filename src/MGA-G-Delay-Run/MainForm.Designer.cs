@@ -143,7 +143,7 @@ partial class MainForm
         MinimumSize = new Size(560, 320);
         Name = "MainForm";
         StartPosition = FormStartPosition.Manual;
-        Text = "MGA G Delay Run - Version 0.0.1";
+        Text = "MGA G Delay Run - Version 1.0.0";
         statusBar.ResumeLayout(false);
         statusLayout.ResumeLayout(false);
         statusLayout.PerformLayout();
