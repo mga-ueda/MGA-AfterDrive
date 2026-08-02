@@ -20,6 +20,11 @@ public static class AppTheme
     public static readonly Color Border = Color.FromArgb(63, 63, 70);
     public static readonly Color Foreground = Color.FromArgb(241, 241, 241);
     public static readonly Color ForegroundMuted = Color.FromArgb(180, 180, 180);
+
+    /// <summary>
+    /// ログ文字色。通常の前景よりわずかに暗くして眩しさを抑える。
+    /// </summary>
+    public static readonly Color LogForeground = Color.FromArgb(212, 212, 212);
     public static readonly Color Accent = Color.FromArgb(0, 122, 204);
     /// <summary>
     /// リスト選択など、アクセントより薄いハイライト。
@@ -64,7 +69,7 @@ public static class AppTheme
                 ApplyDataGridView(grid);
                 break;
 
-            case TextBox or ListBox or ComboBox:
+            case TextBox or ListBox or ComboBox or NumericUpDown:
                 control.BackColor = Surface;
                 break;
 
@@ -121,6 +126,7 @@ public static class AppTheme
 
         grid.ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
         {
+            Alignment = DataGridViewContentAlignment.MiddleCenter,
             BackColor = Surface,
             ForeColor = Foreground,
             SelectionBackColor = Selection,

@@ -9,6 +9,35 @@ public static class SettingAppLauncher
 {
     private const string SettingExeName = "MGA-G-Delay-Run.Setting.exe";
     private const string SettingDllName = "MGA-G-Delay-Run.Setting.dll";
+    private const string SettingProcessName = "MGA-G-Delay-Run.Setting";
+
+    /// <summary>
+    /// 設定アプリが起動中かどうか。
+    /// </summary>
+    public static bool IsRunning()
+    {
+        Process[] processes;
+        try
+        {
+            processes = Process.GetProcessesByName(SettingProcessName);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            return false;
+        }
+
+        try
+        {
+            return processes.Length > 0;
+        }
+        finally
+        {
+            foreach (var process in processes)
+            {
+                process.Dispose();
+            }
+        }
+    }
 
     public static bool TryStart(out string error)
     {

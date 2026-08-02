@@ -22,6 +22,12 @@ partial class MainForm
     {
         components = new System.ComponentModel.Container();
         rootLayout = new TableLayoutPanel();
+        optionsBar = new TableLayoutPanel();
+        maxWaitRow = new FlowLayoutPanel();
+        maxWaitLabel = new Label();
+        maxWaitTextBox = new TextBox();
+        maxWaitUnitLabel = new Label();
+        startMinimizedCheckBox = new CheckBox();
         entryGrid = new DataGridView();
         delayColumn = new DataGridViewTextBoxColumn();
         fileNameColumn = new DataGridViewTextBoxColumn();
@@ -37,6 +43,8 @@ partial class MainForm
         testRunMenuItem = new ToolStripMenuItem();
         deleteMenuItem = new ToolStripMenuItem();
         rootLayout.SuspendLayout();
+        optionsBar.SuspendLayout();
+        maxWaitRow.SuspendLayout();
         ((System.ComponentModel.ISupportInitialize)entryGrid).BeginInit();
         buttonBar.SuspendLayout();
         buttonLayout.SuspendLayout();
@@ -47,14 +55,92 @@ partial class MainForm
         //
         rootLayout.ColumnCount = 1;
         rootLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-        rootLayout.Controls.Add(entryGrid, 0, 0);
-        rootLayout.Controls.Add(buttonBar, 0, 1);
+        rootLayout.Controls.Add(optionsBar, 0, 0);
+        rootLayout.Controls.Add(entryGrid, 0, 1);
+        rootLayout.Controls.Add(buttonBar, 0, 2);
         rootLayout.Dock = DockStyle.Fill;
         rootLayout.Name = "rootLayout";
-        rootLayout.RowCount = 2;
+        rootLayout.RowCount = 3;
+        // オプション行は内容＋上下 Spacing。ButtonHeight 前提にしない（TextBox 高さが合わない）
+        rootLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         rootLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
         rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, AppLayout.Spacing + AppLayout.ButtonHeight + AppLayout.Spacing));
         rootLayout.TabIndex = 0;
+        //
+        // optionsBar（上段: 最大待機時間 / 下段: トレイ起動。外側 Padding は Spacing）
+        //
+        optionsBar.AutoSize = true;
+        optionsBar.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        optionsBar.ColumnCount = 1;
+        optionsBar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        optionsBar.Controls.Add(maxWaitRow, 0, 0);
+        optionsBar.Controls.Add(startMinimizedCheckBox, 0, 1);
+        optionsBar.Dock = DockStyle.Fill;
+        optionsBar.Name = "optionsBar";
+        optionsBar.Padding = new Padding(AppLayout.Spacing);
+        optionsBar.RowCount = 2;
+        optionsBar.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        optionsBar.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        optionsBar.TabIndex = 0;
+        //
+        // maxWaitRow
+        //
+        maxWaitRow.AutoSize = true;
+        maxWaitRow.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        maxWaitRow.Controls.Add(maxWaitLabel);
+        maxWaitRow.Controls.Add(maxWaitTextBox);
+        maxWaitRow.Controls.Add(maxWaitUnitLabel);
+        maxWaitRow.Dock = DockStyle.Fill;
+        maxWaitRow.Margin = new Padding(0);
+        maxWaitRow.Name = "maxWaitRow";
+        maxWaitRow.TabIndex = 0;
+        maxWaitRow.WrapContents = false;
+        //
+        // maxWaitLabel
+        //
+        maxWaitLabel.AutoSize = true;
+        maxWaitLabel.Anchor = AnchorStyles.Left;
+        maxWaitLabel.Margin = new Padding(0, 0, AppLayout.Spacing, 0);
+        maxWaitLabel.Name = "maxWaitLabel";
+        maxWaitLabel.TabIndex = 0;
+        maxWaitLabel.Text = "最大待機時間";
+        maxWaitLabel.TextAlign = ContentAlignment.MiddleLeft;
+        //
+        // maxWaitTextBox（5 文字幅。実幅は OnLoad でフォント基準に再計算）
+        //
+        maxWaitTextBox.BorderStyle = BorderStyle.FixedSingle;
+        maxWaitTextBox.Margin = new Padding(0, 0, AppLayout.Spacing, 0);
+        maxWaitTextBox.MaxLength = 5;
+        maxWaitTextBox.Name = "maxWaitTextBox";
+        maxWaitTextBox.Size = new Size(48, 23);
+        maxWaitTextBox.TabIndex = 1;
+        maxWaitTextBox.Text = "180";
+        maxWaitTextBox.TextAlign = HorizontalAlignment.Center;
+        maxWaitTextBox.TextChanged += MaxWaitTextBox_TextChanged;
+        maxWaitTextBox.KeyPress += MaxWaitTextBox_KeyPress;
+        //
+        // maxWaitUnitLabel
+        //
+        maxWaitUnitLabel.AutoSize = true;
+        maxWaitUnitLabel.Anchor = AnchorStyles.Left;
+        maxWaitUnitLabel.Margin = new Padding(0);
+        maxWaitUnitLabel.Name = "maxWaitUnitLabel";
+        maxWaitUnitLabel.TabIndex = 2;
+        maxWaitUnitLabel.Text = "秒";
+        maxWaitUnitLabel.TextAlign = ContentAlignment.MiddleLeft;
+        //
+        // startMinimizedCheckBox（最大待機時間の下。行間は Spacing）
+        //
+        startMinimizedCheckBox.AutoSize = true;
+        startMinimizedCheckBox.BackColor = Color.Transparent;
+        startMinimizedCheckBox.Checked = false;
+        startMinimizedCheckBox.ForeColor = AppTheme.Foreground;
+        startMinimizedCheckBox.Margin = new Padding(0, AppLayout.Spacing, 0, 0);
+        startMinimizedCheckBox.Name = "startMinimizedCheckBox";
+        startMinimizedCheckBox.TabIndex = 3;
+        startMinimizedCheckBox.Text = "タスクトレイに最小化して起動";
+        startMinimizedCheckBox.UseVisualStyleBackColor = false;
+        startMinimizedCheckBox.CheckedChanged += StartMinimizedCheckBox_CheckedChanged;
         //
         // entryGrid
         //
@@ -86,6 +172,10 @@ partial class MainForm
         //
         delayColumn.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
         delayColumn.DataPropertyName = "Delay";
+        delayColumn.DefaultCellStyle = new DataGridViewCellStyle
+        {
+            Alignment = DataGridViewContentAlignment.MiddleCenter,
+        };
         delayColumn.HeaderText = "Delay";
         delayColumn.MinimumWidth = 40;
         delayColumn.Name = "delayColumn";
@@ -229,6 +319,10 @@ partial class MainForm
         DragDrop += EntryGrid_DragDrop;
         DragEnter += EntryGrid_DragEnter;
         rootLayout.ResumeLayout(false);
+        optionsBar.ResumeLayout(false);
+        optionsBar.PerformLayout();
+        maxWaitRow.ResumeLayout(false);
+        maxWaitRow.PerformLayout();
         ((System.ComponentModel.ISupportInitialize)entryGrid).EndInit();
         buttonBar.ResumeLayout(false);
         buttonBar.PerformLayout();
@@ -240,6 +334,12 @@ partial class MainForm
     #endregion
 
     private TableLayoutPanel rootLayout;
+    private TableLayoutPanel optionsBar;
+    private FlowLayoutPanel maxWaitRow;
+    private Label maxWaitLabel;
+    private TextBox maxWaitTextBox;
+    private Label maxWaitUnitLabel;
+    private CheckBox startMinimizedCheckBox;
     private DataGridView entryGrid;
     private DataGridViewTextBoxColumn delayColumn;
     private DataGridViewTextBoxColumn fileNameColumn;

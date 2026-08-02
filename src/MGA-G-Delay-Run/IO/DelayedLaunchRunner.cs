@@ -7,11 +7,16 @@ namespace MGA_G_Delay_Run.IO;
 /// </summary>
 public static class DelayedLaunchRunner
 {
+    /// <param name="respectEntryDelay">
+    /// true: 各エントリの Delay（秒）をシーケンス開始からの待機に使う。
+    /// false: Delay を無視して登録順（Delay 昇順）に連続起動する（復帰時向け）。
+    /// </param>
     public static async Task RunAsync(
         IReadOnlyList<DelayEntryRecord> entries,
         Action<string> log,
         Action<string?> setTitleStatus,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool respectEntryDelay = true)
     {
         ArgumentNullException.ThrowIfNull(entries);
         ArgumentNullException.ThrowIfNull(log);
@@ -22,9 +27,13 @@ public static class DelayedLaunchRunner
             .ThenBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-        log($"Starting delayed launch for {ordered.Length} entr{(ordered.Length == 1 ? "y" : "ies")}.");
+        var actionVerb = respectEntryDelay ? "起動" : "再開";
+        log(respectEntryDelay
+            ? $"遅延起動を開始します（{ordered.Length} 件）。"
+            : $"再開を開始します（{ordered.Length} 件、Delay 待ちなし）。");
 
-        var phaseStartedAt = DateTime.UtcNow;
+        // エントリ間の差分待機にすると、設定ウィンドウによる一時停止を残り時間に正しく反映できる
+        var previousDelaySeconds = 0;
 
         for (var index = 0; index < ordered.Length; index++)
         {
@@ -36,39 +45,52 @@ public static class DelayedLaunchRunner
                 : entry.FileName;
             var step = $"{index + 1}/{ordered.Length}";
 
-            var delaySeconds = Math.Max(0, entry.Delay);
-            var targetAt = phaseStartedAt + TimeSpan.FromSeconds(delaySeconds);
-            var wait = targetAt - DateTime.UtcNow;
-
-            if (wait > TimeSpan.Zero)
+            if (respectEntryDelay)
             {
-                log($"[{step}] Waiting {FormatDuration(wait)} before launching: {label}");
-                await WaitWithCountdownAsync(wait, label, setTitleStatus, cancellationToken);
+                var delaySeconds = Math.Max(0, entry.Delay);
+                var gapSeconds = Math.Max(0, delaySeconds - previousDelaySeconds);
+                previousDelaySeconds = Math.Max(previousDelaySeconds, delaySeconds);
+
+                if (gapSeconds > 0)
+                {
+                    var wait = TimeSpan.FromSeconds(gapSeconds);
+                    log($"[{step}] {FormatDuration(wait)} 待機してから{actionVerb}: {label}");
+                    await WaitWithCountdownAsync(wait, label, setTitleStatus, cancellationToken);
+                }
+                else
+                {
+                    log($"[{step}] 直ちに{actionVerb}: {label}");
+                }
             }
             else
             {
-                log($"[{step}] Launching now: {label}");
+                log($"[{step}] 直ちに{actionVerb}: {label}");
             }
 
-            LaunchOne(entry, label, step, log);
+            LaunchOne(entry, label, step, log, actionVerb);
         }
 
         setTitleStatus(null);
-        log("All launch entries processed.");
+        log("すべての起動エントリを処理しました。");
     }
 
-    private static void LaunchOne(DelayEntryRecord entry, string label, string step, Action<string> log)
+    private static void LaunchOne(
+        DelayEntryRecord entry,
+        string label,
+        string step,
+        Action<string> log,
+        string actionVerb)
     {
         var filePath = entry.Path?.Trim() ?? string.Empty;
         if (string.IsNullOrWhiteSpace(filePath))
         {
-            log($"[{step}] [ERROR] Path is empty: {label}");
+            log($"[{step}] [ERROR] パスが空です: {label}");
             return;
         }
 
         if (!File.Exists(filePath))
         {
-            log($"[{step}] [ERROR] File not found: {filePath}");
+            log($"[{step}] [ERROR] ファイルが見つかりません: {filePath}");
             return;
         }
 
@@ -81,7 +103,7 @@ public static class DelayedLaunchRunner
                 UseShellExecute = true,
                 WorkingDirectory = Path.GetDirectoryName(filePath) ?? Environment.CurrentDirectory,
             });
-            log($"[{step}] Started: {filePath}");
+            log($"[{step}] {actionVerb}しました: {filePath}");
         }
         catch (Exception ex) when (
             ex is InvalidOperationException
@@ -89,31 +111,23 @@ public static class DelayedLaunchRunner
                 or IOException
                 or UnauthorizedAccessException)
         {
-            log($"[{step}] [ERROR] Failed to start {label}: {ex.Message}");
+            log($"[{step}] [ERROR] {actionVerb}に失敗しました ({label}): {ex.Message}");
         }
     }
 
-    private static async Task WaitWithCountdownAsync(
+    private static Task WaitWithCountdownAsync(
         TimeSpan wait,
         string label,
         Action<string?> setTitleStatus,
         CancellationToken cancellationToken)
     {
-        var deadline = DateTime.UtcNow + wait;
-        while (true)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            var remaining = deadline - DateTime.UtcNow;
-            if (remaining <= TimeSpan.Zero)
-            {
-                break;
-            }
-
-            setTitleStatus($"Launch {label} in {FormatCountdown(remaining)}");
-            var slice = remaining < TimeSpan.FromSeconds(1) ? remaining : TimeSpan.FromSeconds(1);
-            await Task.Delay(slice, cancellationToken);
-        }
+        return PauseAwareCountdown.WaitAsync(
+            wait,
+            TimeSpan.FromSeconds(1),
+            remaining => $"{label} 起動まで {FormatCountdown(remaining)}",
+            () => $"{label} 起動待機を一時停止中（設定ウィンドウ）",
+            setTitleStatus,
+            cancellationToken);
     }
 
     private static string FormatCountdown(TimeSpan remaining)
@@ -131,9 +145,9 @@ public static class DelayedLaunchRunner
     {
         if (duration.TotalMinutes >= 1 && duration.Seconds == 0)
         {
-            return $"{(int)duration.TotalMinutes} min";
+            return $"{(int)duration.TotalMinutes} 分";
         }
 
-        return $"{Math.Max(0, (int)Math.Ceiling(duration.TotalSeconds))} sec";
+        return $"{Math.Max(0, (int)Math.Ceiling(duration.TotalSeconds))} 秒";
     }
 }

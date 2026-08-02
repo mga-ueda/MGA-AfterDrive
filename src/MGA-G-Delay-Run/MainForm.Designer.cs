@@ -22,13 +22,17 @@ partial class MainForm
     {
         components = new System.ComponentModel.Container();
         logEditor = new FrostedLogView();
+        captionBar = new GlassCaptionBar();
         statusBar = new Panel();
+        statusLayout = new TableLayoutPanel();
         licenseLink = new LinkLabel();
+        statusLabel = new Label();
         trayIcon = new NotifyIcon(components);
         trayMenu = new ContextMenuStrip(components);
         settingMenuItem = new ToolStripMenuItem();
         exitMenuItem = new ToolStripMenuItem();
         statusBar.SuspendLayout();
+        statusLayout.SuspendLayout();
         trayMenu.SuspendLayout();
         SuspendLayout();
         //
@@ -39,32 +43,68 @@ partial class MainForm
         logEditor.Name = "logEditor";
         logEditor.TabIndex = 0;
         //
+        // captionBar
+        //
+        captionBar.Dock = DockStyle.Top;
+        captionBar.Height = AppLayout.CaptionBarHeight;
+        captionBar.Name = "captionBar";
+        captionBar.TabIndex = 2;
+        captionBar.CloseRequested += CaptionBar_CloseRequested;
+        //
         // licenseLink
         //
         licenseLink.ActiveLinkColor = AppTheme.Foreground;
         licenseLink.AutoSize = true;
         licenseLink.BackColor = Color.Transparent;
         licenseLink.DisabledLinkColor = AppTheme.ForegroundMuted;
+        licenseLink.Dock = DockStyle.Fill;
         licenseLink.Font = AppFonts.UI;
         licenseLink.LinkBehavior = LinkBehavior.HoverUnderline;
         licenseLink.LinkColor = AppTheme.Accent;
-        licenseLink.Location = new Point(AppLayout.Spacing, 6);
-        licenseLink.Margin = new Padding(AppLayout.Spacing);
+        licenseLink.Margin = new Padding(0);
         licenseLink.Name = "licenseLink";
         licenseLink.TabIndex = 0;
         licenseLink.TabStop = true;
         licenseLink.Text = "Licenses";
+        licenseLink.TextAlign = ContentAlignment.MiddleLeft;
         licenseLink.VisitedLinkColor = AppTheme.Accent;
         licenseLink.LinkClicked += LicenseLink_LinkClicked;
         //
+        // statusLabel（カウントダウン等・右寄せ）
+        //
+        statusLabel.AutoSize = true;
+        statusLabel.BackColor = Color.Transparent;
+        statusLabel.Dock = DockStyle.Fill;
+        statusLabel.Font = AppFonts.UI;
+        statusLabel.ForeColor = AppTheme.Foreground;
+        statusLabel.Margin = new Padding(AppLayout.Spacing, 0, 0, 0);
+        statusLabel.Name = "statusLabel";
+        statusLabel.TabIndex = 1;
+        statusLabel.TextAlign = ContentAlignment.MiddleRight;
+        //
+        // statusLayout
+        //
+        statusLayout.BackColor = Color.Black;
+        statusLayout.ColumnCount = 2;
+        statusLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        statusLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        statusLayout.Controls.Add(licenseLink, 0, 0);
+        statusLayout.Controls.Add(statusLabel, 1, 0);
+        statusLayout.Dock = DockStyle.Fill;
+        statusLayout.Name = "statusLayout";
+        statusLayout.Padding = new Padding(AppLayout.Spacing, 0, AppLayout.Spacing, 0);
+        statusLayout.RowCount = 1;
+        statusLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+        statusLayout.TabIndex = 0;
+        //
         // statusBar
         //
-        statusBar.BackColor = AppTheme.Surface;
-        statusBar.Controls.Add(licenseLink);
+        // 純黒 = DWM ガラスキー。不透明色にすると Acrylic が透けない。
+        statusBar.BackColor = Color.Black;
+        statusBar.Controls.Add(statusLayout);
         statusBar.Dock = DockStyle.Bottom;
         statusBar.Height = AppLayout.StatusBarHeight;
         statusBar.Name = "statusBar";
-        statusBar.Padding = new Padding(AppLayout.Spacing, 0, AppLayout.Spacing, 0);
         statusBar.TabIndex = 1;
         //
         // settingMenuItem
@@ -94,17 +134,19 @@ partial class MainForm
         //
         AutoScaleDimensions = new SizeF(96F, 96F);
         AutoScaleMode = AutoScaleMode.Dpi;
-        ClientSize = new Size(960, 540);
+        ClientSize = new Size(720, 400);
         Controls.Add(logEditor);
         Controls.Add(statusBar);
+        Controls.Add(captionBar);
         MaximizeBox = false;
         MinimizeBox = false;
-        MinimumSize = new Size(640, 400);
+        MinimumSize = new Size(560, 320);
         Name = "MainForm";
         StartPosition = FormStartPosition.Manual;
         Text = "MGA G Delay Run - Version 0.0.1";
         statusBar.ResumeLayout(false);
-        statusBar.PerformLayout();
+        statusLayout.ResumeLayout(false);
+        statusLayout.PerformLayout();
         trayMenu.ResumeLayout(false);
         ResumeLayout(false);
     }
@@ -112,8 +154,11 @@ partial class MainForm
     #endregion
 
     private FrostedLogView logEditor;
+    private GlassCaptionBar captionBar;
     private Panel statusBar;
+    private TableLayoutPanel statusLayout;
     private LinkLabel licenseLink;
+    private Label statusLabel;
     private NotifyIcon trayIcon;
     private ContextMenuStrip trayMenu;
     private ToolStripMenuItem settingMenuItem;

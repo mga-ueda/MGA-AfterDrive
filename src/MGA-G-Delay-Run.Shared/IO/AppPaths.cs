@@ -6,6 +6,7 @@ namespace MGA_G_Delay_Run.IO;
 public static class AppPaths
 {
     public const string DelayEntriesFileName = "delay-entries.json";
+    public const string SettingsFileName = "settings.json";
 
     public static string GetStoreDirectory()
     {
@@ -17,4 +18,7 @@ public static class AppPaths
 
     public static string GetDelayEntriesFilePath() =>
         Path.Combine(GetStoreDirectory(), DelayEntriesFileName);
+
+    public static string GetSettingsFilePath() =>
+        Path.Combine(GetStoreDirectory(), SettingsFileName);
 }

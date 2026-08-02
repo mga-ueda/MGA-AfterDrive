@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using MGA_G_Delay_Run.Forms;
+using MGA_G_Delay_Run.IO;
 using MGA_G_Delay_Run.Setting.IO;
 using MGA_G_Delay_Run.Setting.Models;
 using MGA_G_Delay_Run.Theme;
@@ -19,6 +20,7 @@ public partial class MainForm : AppForm
     private bool _isLoading;
     private bool _allowCloseWithoutPrompt;
     private bool _fittingWindow;
+    private ToolTip? _optionsToolTip;
 
     public MainForm()
     {
@@ -33,16 +35,63 @@ public partial class MainForm : AppForm
 
     protected override bool PersistWindowBounds => false;
 
+    protected override void OnDpiChangedAfterParent(EventArgs e)
+    {
+        base.OnDpiChangedAfterParent(e);
+        LayoutMaxWaitOptions();
+        FitWindowToContent();
+    }
+
     protected override void OnLoad(EventArgs e)
     {
         base.OnLoad(e);
         ApplyContextMenuTheme();
         restartColumn.HeaderCell.ToolTipText = restartColumn.ToolTipText;
-        LoadEntries();
+        var maxWaitTip = "Google Drive プロセス待機とアクセス確認の上限時間（秒）";
+        _optionsToolTip ??= new ToolTip(components);
+        _optionsToolTip.SetToolTip(maxWaitLabel, maxWaitTip);
+        _optionsToolTip.SetToolTip(maxWaitTextBox, maxWaitTip);
+        _optionsToolTip.SetToolTip(maxWaitUnitLabel, maxWaitTip);
+        _optionsToolTip.SetToolTip(startMinimizedCheckBox, "起動時にウィンドウを出さず、タスクトレイへ格納した状態で開始します。");
+        LayoutMaxWaitOptions();
+        LoadSettingsAndEntries();
         UpdateSaveButtonAppearance();
         UpdateStartAllButtonState();
         FitWindowToContent();
         CenterOnPrimaryDisplay();
+    }
+
+    /// <summary>
+    /// 上段: [ラベル] Spacing [5文字エディタ] Spacing [秒]
+    /// 下段: タスクトレイに最小化して起動（行間 Spacing）
+    /// </summary>
+    private void LayoutMaxWaitOptions()
+    {
+        maxWaitLabel.Text = "最大待機時間";
+        maxWaitUnitLabel.Text = "秒";
+
+        maxWaitTextBox.Font = AppFonts.UI;
+        var textWidth = TextRenderer.MeasureText(
+            "00000",
+            maxWaitTextBox.Font,
+            Size.Empty,
+            TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix).Width;
+        maxWaitTextBox.Width = textWidth + 8;
+        // 単一行 TextBox はフォント由来の PreferredHeight を使う（無理に ButtonHeight にしない）
+        maxWaitTextBox.Height = maxWaitTextBox.PreferredHeight;
+        maxWaitTextBox.TextAlign = HorizontalAlignment.Center;
+
+        startMinimizedCheckBox.ForeColor = AppTheme.Foreground;
+        startMinimizedCheckBox.BackColor = Color.Transparent;
+
+        // 上段ラベルをエディタの垂直中央に。下段チェックは行間 Spacing
+        var editorHeight = maxWaitTextBox.Height;
+        var labelOffset = Math.Max(0, (editorHeight - maxWaitLabel.PreferredHeight) / 2);
+        var unitOffset = Math.Max(0, (editorHeight - maxWaitUnitLabel.PreferredHeight) / 2);
+        maxWaitLabel.Margin = new Padding(0, labelOffset, AppLayout.Spacing, labelOffset);
+        maxWaitTextBox.Margin = new Padding(0, 0, AppLayout.Spacing, 0);
+        maxWaitUnitLabel.Margin = new Padding(0, unitOffset, 0, unitOffset);
+        startMinimizedCheckBox.Margin = new Padding(0, AppLayout.Spacing, 0, 0);
     }
 
     protected override void OnFormClosing(FormClosingEventArgs e)
@@ -69,11 +118,15 @@ public partial class MainForm : AppForm
         }
     }
 
-    private void LoadEntries()
+    private void LoadSettingsAndEntries()
     {
         _isLoading = true;
         try
         {
+            var settings = AppSettingsStore.Load();
+            maxWaitTextBox.Text = AppSettings.ClampMaxWaitSeconds(settings.MaxWaitSeconds).ToString();
+            startMinimizedCheckBox.Checked = settings.StartMinimizedToTray;
+
             _entries.Clear();
             foreach (var entry in DelayEntryStore.Load())
             {
@@ -96,6 +149,53 @@ public partial class MainForm : AppForm
         {
             _isLoading = false;
         }
+    }
+
+    private void MaxWaitTextBox_TextChanged(object? sender, EventArgs e)
+    {
+        if (!_isLoading)
+        {
+            SetDirty(true);
+        }
+    }
+
+    private void StartMinimizedCheckBox_CheckedChanged(object? sender, EventArgs e)
+    {
+        if (!_isLoading)
+        {
+            SetDirty(true);
+        }
+    }
+
+    private void MaxWaitTextBox_KeyPress(object? sender, KeyPressEventArgs e)
+    {
+        if (char.IsControl(e.KeyChar) || char.IsDigit(e.KeyChar))
+        {
+            return;
+        }
+
+        e.Handled = true;
+    }
+
+    private bool TryReadMaxWaitSeconds(out int seconds, out string error)
+    {
+        seconds = AppSettings.DefaultMaxWaitSeconds;
+        error = string.Empty;
+
+        if (!int.TryParse(maxWaitTextBox.Text.Trim(), out var value))
+        {
+            error = "最大待機時間は整数で入力してください。";
+            return false;
+        }
+
+        if (value < AppSettings.MinMaxWaitSeconds || value > AppSettings.MaxMaxWaitSeconds)
+        {
+            error = $"最大待機時間は {AppSettings.MinMaxWaitSeconds}〜{AppSettings.MaxMaxWaitSeconds} の範囲で入力してください。";
+            return false;
+        }
+
+        seconds = value;
+        return true;
     }
 
     private void Entries_ListChanged(object? sender, ListChangedEventArgs e)
@@ -342,7 +442,9 @@ public partial class MainForm : AppForm
             e.CellStyle.Font ?? entryGrid.Font,
             textBounds,
             e.CellStyle.ForeColor,
-            TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+            TextFormatFlags.HorizontalCenter
+            | TextFormatFlags.VerticalCenter
+            | TextFormatFlags.EndEllipsis);
 
         e.Handled = true;
     }
@@ -418,6 +520,12 @@ public partial class MainForm : AppForm
                 + cancelButton.Width
                 + (AppLayout.Spacing * 4);
 
+            var optionsBarHeight = Math.Max(
+                optionsBar.PreferredSize.Height,
+                (AppLayout.Spacing * 2)
+                    + maxWaitTextBox.Height
+                    + AppLayout.Spacing
+                    + startMinimizedCheckBox.PreferredSize.Height);
             var buttonBarHeight = AppLayout.Spacing + AppLayout.ButtonHeight + AppLayout.Spacing;
             var idealGridHeight = headerHeight + (rowHeight * visibleRows) + GetGridChromeHeight();
 
@@ -427,8 +535,20 @@ public partial class MainForm : AppForm
             var maxClientW = Math.Max(200, area.Width - chromeW);
             var maxClientH = Math.Max(150, area.Height - chromeH);
 
-            var clientW = Math.Max(columnsWidth + gridChrome, buttonBarContentWidth);
-            var clientH = idealGridHeight + buttonBarHeight;
+            var maxWaitRowWidth =
+                maxWaitLabel.PreferredWidth
+                + AppLayout.Spacing
+                + maxWaitTextBox.Width
+                + AppLayout.Spacing
+                + maxWaitUnitLabel.PreferredWidth;
+            var optionsContentWidth =
+                Math.Max(maxWaitRowWidth, startMinimizedCheckBox.PreferredSize.Width)
+                + (AppLayout.Spacing * 2);
+
+            var clientW = Math.Max(
+                Math.Max(columnsWidth + gridChrome, buttonBarContentWidth),
+                optionsContentWidth);
+            var clientH = optionsBarHeight + idealGridHeight + buttonBarHeight;
 
             // 画面に収まらない場合のみ縦スクロールを許可（横は出さない）
             var heightClamped = clientH > maxClientH;
@@ -562,6 +682,8 @@ public partial class MainForm : AppForm
             return;
         }
 
+        textBox.TextAlign = HorizontalAlignment.Center;
+
         // 表示直後にキャレットが末尾へ動くため、次フレームで全選択する
         BeginInvoke(() =>
         {
@@ -688,8 +810,26 @@ public partial class MainForm : AppForm
             return;
         }
 
+        if (!TryReadMaxWaitSeconds(out var maxWaitSeconds, out var maxWaitError))
+        {
+            MessageBox.Show(
+                this,
+                maxWaitError,
+                AppInfo.ProductName,
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+            maxWaitTextBox.Focus();
+            maxWaitTextBox.SelectAll();
+            return;
+        }
+
         try
         {
+            AppSettingsStore.Save(new AppSettings
+            {
+                MaxWaitSeconds = maxWaitSeconds,
+                StartMinimizedToTray = startMinimizedCheckBox.Checked,
+            });
             DelayEntryStore.Save(_entries);
             SetDirty(false);
             MessageBox.Show(

@@ -24,4 +24,9 @@ public static class AppLayout
     /// ステータスバーの高さ。
     /// </summary>
     public const int StatusBarHeight = 28;
+
+    /// <summary>
+    /// 自前描画タイトルバー（キャプション）の高さ。
+    /// </summary>
+    public const int CaptionBarHeight = 32;
 }

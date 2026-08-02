@@ -34,6 +34,16 @@ public class AppForm : Form
     /// </summary>
     protected virtual bool PersistWindowBounds => true;
 
+    /// <summary>
+    /// false のとき初回表示で Opacity を上げず、サブクラスがトレイ格納などへ進める。
+    /// </summary>
+    protected virtual bool ShouldRevealOnShown => true;
+
+    /// <summary>
+    /// 初回描画完了後に可視化済みか。
+    /// </summary>
+    protected bool IsRevealed => _revealed;
+
     protected override void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);
@@ -67,9 +77,46 @@ public class AppForm : Form
             CenterOnPrimaryDisplay();
         }
 
-        BringToFront();
-        Activate();
-        RevealAfterPaint();
+        if (ShouldRevealOnShown)
+        {
+            BringToFront();
+            Activate();
+            RevealAfterPaint();
+            return;
+        }
+
+        // トレイ起動など: Opacity=0 のまま描画準備だけ終え、可視化しない
+        BeginInvoke(() =>
+        {
+            if (IsDisposed || _revealed)
+            {
+                return;
+            }
+
+            Update();
+            AcrylicBackdrop.ClearLayeredStyle(Handle);
+            _revealed = true;
+            OnRevealed();
+        });
+    }
+
+    /// <summary>
+    /// トレイなどから初めてウィンドウを見せるときに呼ぶ。
+    /// </summary>
+    protected void RevealNow()
+    {
+        if (IsDisposed)
+        {
+            return;
+        }
+
+        Opacity = 1;
+        if (IsHandleCreated)
+        {
+            AcrylicBackdrop.ClearLayeredStyle(Handle);
+        }
+
+        _revealed = true;
     }
 
     protected override void OnFormClosing(FormClosingEventArgs e)

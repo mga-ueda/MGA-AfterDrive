@@ -24,7 +24,7 @@ public sealed class FrostedLogView : Control
             true);
 
         BackColor = Color.Black;
-        ForeColor = AppTheme.Foreground;
+        ForeColor = AppTheme.LogForeground;
         Font = AppFonts.Log;
         TabStop = true;
         RefreshDrawFont();

@@ -22,13 +22,13 @@ public static class GoogleDriveLocator
             using var key = Registry.CurrentUser.OpenSubKey(RegistryPath);
             if (key is null)
             {
-                detail = @"Registry key HKCU\Software\Google\DriveFS was not found.";
+                detail = @"レジストリキー HKCU\Software\Google\DriveFS が見つかりません。";
                 return false;
             }
 
             if (key.GetValue(PreferencesValueName) is not string json || string.IsNullOrWhiteSpace(json))
             {
-                detail = "PerAccountPreferences is empty.";
+                detail = "PerAccountPreferences が空です。";
                 return false;
             }
 
@@ -38,7 +38,7 @@ public static class GoogleDriveLocator
             if (!document.RootElement.TryGetProperty("per_account_preferences", out var preferences)
                 || preferences.ValueKind != JsonValueKind.Array)
             {
-                detail = "Unable to parse per_account_preferences.";
+                detail = "per_account_preferences を解析できません。";
                 return false;
             }
 
@@ -68,31 +68,31 @@ public static class GoogleDriveLocator
             {
                 var reason = string.IsNullOrWhiteSpace(currentAccount)
                     ? $"mount_point_path={fallbackRaw}"
-                    : $"No match for CurrentAccountToken={currentAccount}. Falling back to mount_point_path={fallbackRaw}";
+                    : $"CurrentAccountToken={currentAccount} に一致なし。フォールバック mount_point_path={fallbackRaw}";
                 return FinalizeMountPath(fallbackRaw, reason, out mountPath, out detail);
             }
 
-            detail = "mount_point_path is not configured.";
+            detail = "mount_point_path が設定されていません。";
             return false;
         }
         catch (JsonException ex)
         {
-            detail = $"JSON parse error: {ex.Message}";
+            detail = $"JSON 解析エラー: {ex.Message}";
             return false;
         }
         catch (ArgumentException ex)
         {
-            detail = $"Invalid path: {ex.Message}";
+            detail = $"無効なパス: {ex.Message}";
             return false;
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException)
         {
-            detail = $"Registry access denied: {ex.Message}";
+            detail = $"レジストリアクセスが拒否されました: {ex.Message}";
             return false;
         }
         catch (Exception ex)
         {
-            detail = $"Lookup error ({ex.GetType().Name}): {ex.Message}";
+            detail = $"参照エラー（{ex.GetType().Name}）: {ex.Message}";
             return false;
         }
     }
@@ -140,7 +140,7 @@ public static class GoogleDriveLocator
 
         if (!IsPlausibleMountPath(mountPath, out var validationError))
         {
-            detail = $"{reason}; validation failed: {validationError}";
+            detail = $"{reason}; 検証失敗: {validationError}";
             mountPath = string.Empty;
             return false;
         }
@@ -169,7 +169,7 @@ public static class GoogleDriveLocator
     {
         if (string.IsNullOrWhiteSpace(mountPath))
         {
-            error = "Path is empty.";
+            error = "パスが空です。";
             return false;
         }
 
@@ -178,7 +178,7 @@ public static class GoogleDriveLocator
             var root = Path.GetPathRoot(mountPath);
             if (string.IsNullOrWhiteSpace(root))
             {
-                error = "Unable to get root path.";
+                error = "ルートパスを取得できません。";
                 return false;
             }
 

@@ -3,17 +3,16 @@ using System.Diagnostics;
 namespace MGA_G_Delay_Run.IO;
 
 /// <summary>
-/// Resolves the Google Drive mount, waits for the process, and verifies access.
+/// Google Drive のマウント解決、プロセス待機、アクセス確認を行う。
 /// </summary>
 public static class GoogleDriveStartupProbe
 {
     private const string ProcessName = "GoogleDriveFS";
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(3);
-    private static readonly TimeSpan MaxWait = TimeSpan.FromMinutes(3);
 
-    /// <param name="log">Log output (timestamp is added by the caller).</param>
-    /// <param name="setTitleStatus">Window title status. Pass null to clear.</param>
-    /// <returns>true when Google Drive is resolved and accessible.</returns>
+    /// <param name="log">ログ出力（タイムスタンプは呼び出し側が付与）。</param>
+    /// <param name="setTitleStatus">ウィンドウタイトル状態。null で解除。</param>
+    /// <returns>解決できてアクセス可能なとき true。</returns>
     public static async Task<bool> RunAsync(
         Action<string> log,
         Action<string?> setTitleStatus,
@@ -22,18 +21,20 @@ public static class GoogleDriveStartupProbe
         ArgumentNullException.ThrowIfNull(log);
         ArgumentNullException.ThrowIfNull(setTitleStatus);
 
+        var maxWait = AppSettingsStore.Load().GetMaxWait();
         var succeeded = false;
         try
         {
-            log("Starting Google Drive probe.");
+            log("Google Drive の確認を開始します。");
+            log($"最大待機時間: {FormatDuration(maxWait)}（設定値）。");
 
             if (!GoogleDriveLocator.TryGetMountPath(out var mountPath, out var detail))
             {
-                log($"[ERROR] Failed to resolve drive letter: {detail}");
+                log($"[ERROR] ドライブ文字の解決に失敗しました: {detail}");
                 return false;
             }
 
-            log($"Resolved drive letter: {mountPath} ({detail})");
+            log($"ドライブ文字を解決しました: {mountPath}（{detail}）");
 
             bool processRunning;
             try
@@ -42,27 +43,27 @@ public static class GoogleDriveStartupProbe
             }
             catch (Exception ex)
             {
-                log($"[ERROR] Failed to query process state: {ex.GetType().Name}: {ex.Message}");
+                log($"[ERROR] プロセス状態の取得に失敗しました: {ex.GetType().Name}: {ex.Message}");
                 return false;
             }
 
             if (processRunning)
             {
-                log($"Process {ProcessName} is already running.");
+                log($"プロセス {ProcessName} は既に起動しています。");
             }
             else
             {
-                log($"Waiting for process {ProcessName} (up to {FormatDuration(MaxWait)}).");
+                log($"プロセス {ProcessName} の起動を待機します（最大 {FormatDuration(maxWait)}）。");
                 try
                 {
-                    var started = await WaitForProcessAsync(setTitleStatus, cancellationToken);
+                    var started = await WaitForProcessAsync(maxWait, setTitleStatus, cancellationToken);
                     if (!started)
                     {
-                        log($"[ERROR] Timed out waiting for process {ProcessName} ({FormatDuration(MaxWait)}).");
+                        log($"[ERROR] プロセス {ProcessName} の待機がタイムアウトしました（{FormatDuration(maxWait)}）。");
                         return false;
                     }
 
-                    log($"Process {ProcessName} is running.");
+                    log($"プロセス {ProcessName} が起動しました。");
                 }
                 catch (OperationCanceledException)
                 {
@@ -70,17 +71,17 @@ public static class GoogleDriveStartupProbe
                 }
                 catch (Exception ex)
                 {
-                    log($"[ERROR] Failed while waiting for process: {ex.GetType().Name}: {ex.Message}");
+                    log($"[ERROR] プロセス待機中に失敗しました: {ex.GetType().Name}: {ex.Message}");
                     return false;
                 }
             }
 
-            log($"Checking access: {mountPath} (up to {FormatDuration(MaxWait)})");
+            log($"アクセスを確認しています: {mountPath}（最大 {FormatDuration(maxWait)}）");
 
             bool accessible;
             try
             {
-                accessible = await WaitUntilAccessibleAsync(mountPath, setTitleStatus, cancellationToken);
+                accessible = await WaitUntilAccessibleAsync(mountPath, maxWait, setTitleStatus, cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -88,18 +89,18 @@ public static class GoogleDriveStartupProbe
             }
             catch (Exception ex)
             {
-                log($"[ERROR] Failed during access check: {ex.GetType().Name}: {ex.Message}");
+                log($"[ERROR] アクセス確認中に失敗しました: {ex.GetType().Name}: {ex.Message}");
                 return false;
             }
 
             if (accessible)
             {
-                log($"Accessible: {mountPath}");
+                log($"アクセス可能です: {mountPath}");
                 succeeded = true;
             }
             else
             {
-                log($"[ERROR] Not accessible (timeout {FormatDuration(MaxWait)}): {mountPath}");
+                log($"[ERROR] アクセスできません（タイムアウト {FormatDuration(maxWait)}）: {mountPath}");
             }
 
             return succeeded;
@@ -108,29 +109,38 @@ public static class GoogleDriveStartupProbe
         {
             setTitleStatus(null);
             log(succeeded
-                ? "Google Drive probe finished successfully."
-                : "Google Drive probe finished with errors.");
+                ? "Google Drive の確認が正常に完了しました。"
+                : "Google Drive の確認がエラーで終了しました。");
         }
     }
 
     private static async Task<bool> WaitForProcessAsync(
+        TimeSpan maxWait,
         Action<string?> setTitleStatus,
         CancellationToken cancellationToken)
     {
-        var deadline = DateTime.UtcNow + MaxWait;
+        var remaining = maxWait;
 
         while (!IsProcessRunning())
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var remaining = deadline - DateTime.UtcNow;
             if (remaining <= TimeSpan.Zero)
             {
                 return false;
             }
 
-            setTitleStatus($"Waiting for {ProcessName} {FormatCountdown(remaining)}");
-            await Task.Delay(PollInterval, cancellationToken);
+            if (SettingAppLauncher.IsRunning())
+            {
+                setTitleStatus($"{ProcessName} 待機を一時停止中（設定ウィンドウ）");
+                await Task.Delay(TimeSpan.FromMilliseconds(200), cancellationToken);
+                continue;
+            }
+
+            setTitleStatus($"{ProcessName} 待機中 {FormatCountdown(remaining)}");
+            var slice = remaining < PollInterval ? remaining : PollInterval;
+            await Task.Delay(slice, cancellationToken);
+            remaining -= slice;
         }
 
         return true;
@@ -138,10 +148,11 @@ public static class GoogleDriveStartupProbe
 
     private static async Task<bool> WaitUntilAccessibleAsync(
         string mountPath,
+        TimeSpan maxWait,
         Action<string?> setTitleStatus,
         CancellationToken cancellationToken)
     {
-        var deadline = DateTime.UtcNow + MaxWait;
+        var remaining = maxWait;
 
         while (true)
         {
@@ -152,14 +163,22 @@ public static class GoogleDriveStartupProbe
                 return true;
             }
 
-            var remaining = deadline - DateTime.UtcNow;
             if (remaining <= TimeSpan.Zero)
             {
                 return false;
             }
 
-            setTitleStatus($"Checking access {FormatCountdown(remaining)}");
-            await Task.Delay(PollInterval, cancellationToken);
+            if (SettingAppLauncher.IsRunning())
+            {
+                setTitleStatus("アクセス確認を一時停止中（設定ウィンドウ）");
+                await Task.Delay(TimeSpan.FromMilliseconds(200), cancellationToken);
+                continue;
+            }
+
+            setTitleStatus($"アクセス確認中 {FormatCountdown(remaining)}");
+            var slice = remaining < PollInterval ? remaining : PollInterval;
+            await Task.Delay(slice, cancellationToken);
+            remaining -= slice;
         }
     }
 
@@ -180,13 +199,13 @@ public static class GoogleDriveStartupProbe
     {
         if (duration.TotalMinutes >= 1 && duration.Seconds == 0)
         {
-            return $"{(int)duration.TotalMinutes} min";
+            return $"{(int)duration.TotalMinutes} 分";
         }
 
-        return $"{duration.TotalSeconds:0} sec";
+        return $"{duration.TotalSeconds:0} 秒";
     }
 
-    private static bool IsProcessRunning()
+    internal static bool IsProcessRunning()
     {
         Process[] processes;
         try
@@ -195,7 +214,7 @@ public static class GoogleDriveStartupProbe
         }
         catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
         {
-            throw new InvalidOperationException($"Failed to enumerate process {ProcessName}.", ex);
+            throw new InvalidOperationException($"プロセス {ProcessName} の列挙に失敗しました。", ex);
         }
 
         try
@@ -211,7 +230,7 @@ public static class GoogleDriveStartupProbe
         }
     }
 
-    private static bool TryAccess(string mountPath, out string detail)
+    internal static bool TryAccess(string mountPath, out string detail)
     {
         try
         {
@@ -221,21 +240,21 @@ public static class GoogleDriveStartupProbe
                 var drive = new DriveInfo(root);
                 if (!drive.IsReady)
                 {
-                    detail = $"Drive {root} is not ready (Type={drive.DriveType}).";
+                    detail = $"ドライブ {root} の準備ができていません（種類={drive.DriveType}）。";
                     return false;
                 }
             }
 
             if (!Directory.Exists(mountPath))
             {
-                detail = "Directory does not exist.";
+                detail = "ディレクトリが存在しません。";
                 return false;
             }
 
             using var enumerator = Directory.EnumerateFileSystemEntries(mountPath).GetEnumerator();
             _ = enumerator.MoveNext();
 
-            detail = "Root enumeration succeeded.";
+            detail = "ルートの列挙に成功しました。";
             return true;
         }
         catch (Exception ex) when (
