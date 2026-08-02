@@ -29,4 +29,14 @@ public static class AppLayout
     /// 自前描画タイトルバー（キャプション）の高さ。
     /// </summary>
     public const int CaptionBarHeight = 32;
+
+    /// <summary>
+    /// 自前描画スクロールバーの幅（デザイン時 96 DPI）。
+    /// </summary>
+    public const int ScrollbarWidth = 6;
+
+    /// <summary>
+    /// 自前描画スクロールバーつまみの最小高さ（デザイン時 96 DPI）。
+    /// </summary>
+    public const int ScrollbarMinThumbHeight = 24;
 }

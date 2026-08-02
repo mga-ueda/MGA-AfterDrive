@@ -26,12 +26,33 @@ public static class AppTheme
     /// </summary>
     public static readonly Color LogForeground = Color.FromArgb(212, 212, 212);
     public static readonly Color Accent = Color.FromArgb(0, 122, 204);
+    /// <summary>アクセント枠用の明るい青。</summary>
+    public static readonly Color AccentBorder = Color.FromArgb(40, 140, 220);
+    /// <summary>アクセントボタンの塗り（暗い青）。</summary>
+    public static readonly Color AccentFill = Color.FromArgb(14, 28, 42);
+    /// <summary>アクセントボタンのホバー塗り。</summary>
+    public static readonly Color AccentFillHover = Color.FromArgb(20, 38, 56);
+
     /// <summary>
-    /// リスト選択など、アクセントより薄いハイライト。
+    /// リスト選択など。背景に馴染む暗めのハイライト。
     /// </summary>
-    public static readonly Color Selection = Color.FromArgb(56, 88, 120);
-    public static readonly Color Danger = Color.FromArgb(180, 40, 40);
-    public static readonly Color DangerHover = Color.FromArgb(200, 55, 55);
+    public static readonly Color Selection = Color.FromArgb(40, 48, 58);
+
+    /// <summary>警告枠（オレンジ）。</summary>
+    public static readonly Color WarningBorder = Color.FromArgb(220, 130, 40);
+    /// <summary>警告ボタンの塗り（暗いオレンジ）。</summary>
+    public static readonly Color WarningFill = Color.FromArgb(42, 24, 10);
+    /// <summary>警告ボタンのホバー塗り。</summary>
+    public static readonly Color WarningFillHover = Color.FromArgb(56, 32, 14);
+
+    /// <summary>危険枠・クローズ等の赤。</summary>
+    public static readonly Color Danger = Color.FromArgb(200, 55, 55);
+    /// <summary>危険ボタンのホバー（クローズ等）。</summary>
+    public static readonly Color DangerHover = Color.FromArgb(220, 70, 70);
+    /// <summary>危険ボタンの塗り（暗い赤）。</summary>
+    public static readonly Color DangerFill = Color.FromArgb(42, 16, 16);
+    /// <summary>危険ボタンのホバー塗り。</summary>
+    public static readonly Color DangerFillHover = Color.FromArgb(56, 22, 22);
 
     /// <summary>
     /// フォームと配下コントロールへダークテーマを適用する。
@@ -112,6 +133,51 @@ public static class AppTheme
         button.AutoSize = false;
         button.Cursor = Cursors.Hand;
         button.FlatAppearance.MouseDownBackColor = SurfaceHover;
+    }
+
+    /// <summary>枠オレンジ・塗り暗いオレンジ。</summary>
+    public static void ApplyWarningButton(Button button)
+    {
+        ApplyButton(button);
+        button.FlatAppearance.BorderSize = 2;
+        button.BackColor = WarningFill;
+        button.FlatAppearance.BorderColor = WarningBorder;
+        button.FlatAppearance.MouseOverBackColor = WarningFillHover;
+        button.FlatAppearance.MouseDownBackColor = WarningFillHover;
+    }
+
+    /// <summary>枠赤・塗り暗い赤。</summary>
+    public static void ApplyDangerButton(Button button)
+    {
+        ApplyButton(button);
+        button.FlatAppearance.BorderSize = 2;
+        button.BackColor = DangerFill;
+        button.FlatAppearance.BorderColor = Danger;
+        button.FlatAppearance.MouseOverBackColor = DangerFillHover;
+        button.FlatAppearance.MouseDownBackColor = DangerFillHover;
+    }
+
+    /// <summary>枠青・塗り暗い青。</summary>
+    public static void ApplyAccentButton(Button button)
+    {
+        ApplyButton(button);
+        button.FlatAppearance.BorderSize = 2;
+        button.BackColor = AccentFill;
+        button.FlatAppearance.BorderColor = AccentBorder;
+        button.FlatAppearance.MouseOverBackColor = AccentFillHover;
+        button.FlatAppearance.MouseDownBackColor = AccentFillHover;
+    }
+
+    /// <summary>無効時の目立たないボタン見た目。</summary>
+    public static void ApplyDisabledButton(Button button)
+    {
+        ApplyButton(button);
+        button.BackColor = Background;
+        button.ForeColor = ForegroundMuted;
+        button.FlatAppearance.BorderColor = Border;
+        button.FlatAppearance.MouseOverBackColor = Background;
+        button.FlatAppearance.MouseDownBackColor = Background;
+        button.Cursor = Cursors.Default;
     }
 
     private static void ApplyDataGridView(DataGridView grid)

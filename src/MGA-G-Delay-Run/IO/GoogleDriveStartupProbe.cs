@@ -130,9 +130,9 @@ public static class GoogleDriveStartupProbe
                 return false;
             }
 
-            if (SettingAppLauncher.IsRunning())
+            if (OperationPause.ShouldPause())
             {
-                setTitleStatus($"{ProcessName} 待機を一時停止中（設定ウィンドウ）");
+                setTitleStatus($"{ProcessName} 待機を一時停止中（{OperationPause.DescribeReason()}）");
                 await Task.Delay(TimeSpan.FromMilliseconds(200), cancellationToken);
                 continue;
             }
@@ -168,9 +168,9 @@ public static class GoogleDriveStartupProbe
                 return false;
             }
 
-            if (SettingAppLauncher.IsRunning())
+            if (OperationPause.ShouldPause())
             {
-                setTitleStatus("アクセス確認を一時停止中（設定ウィンドウ）");
+                setTitleStatus($"アクセス確認を一時停止中（{OperationPause.DescribeReason()}）");
                 await Task.Delay(TimeSpan.FromMilliseconds(200), cancellationToken);
                 continue;
             }

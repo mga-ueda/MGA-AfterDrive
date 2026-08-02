@@ -125,7 +125,7 @@ public static class DelayedLaunchRunner
             wait,
             TimeSpan.FromSeconds(1),
             remaining => $"{label} 起動まで {FormatCountdown(remaining)}",
-            () => $"{label} 起動待機を一時停止中（設定ウィンドウ）",
+            () => $"{label} 起動待機を一時停止中（{OperationPause.DescribeReason()}）",
             setTitleStatus,
             cancellationToken);
     }

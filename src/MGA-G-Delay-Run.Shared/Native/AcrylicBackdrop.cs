@@ -42,14 +42,6 @@ public static class AcrylicBackdrop
                 return;
             }
 
-            if (form.Opacity < 1.0)
-            {
-                form.Opacity = 1.0;
-            }
-
-            // Opacity 由来の WS_EX_LAYERED が残ると黒/グレー固定になる
-            ClearLayeredStyle(form.Handle);
-
             var hwnd = form.Handle;
 
             // ガラスのキー色は黒（黒いピクセルほどよく透ける）
@@ -61,6 +53,15 @@ public static class AcrylicBackdrop
             // SYSTEMBACKDROP は ACCENT と競合するため明示的に無効化
             var backdrop = DwmsbtNone;
             _ = DwmSetWindowAttribute(hwnd, DwmwaSystemBackdropType, ref backdrop, sizeof(int));
+
+            // Opacity→レイヤード解除→Accent を連続で行い、不透明フレームが見える隙間を最小化
+            if (form.Opacity < 1.0)
+            {
+                form.Opacity = 1.0;
+            }
+
+            // Opacity 由来の WS_EX_LAYERED が残ると黒/グレー固定になる
+            ClearLayeredStyle(hwnd);
 
             // 透けの本体。アルファが低いほど透ける。
             ApplyAccent(hwnd, AccentState.AccentEnableAcrylicBlurBehind, AppTheme.AcrylicTintAlpha);

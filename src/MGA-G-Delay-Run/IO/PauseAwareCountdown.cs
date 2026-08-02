@@ -1,14 +1,14 @@
 namespace MGA_G_Delay_Run.IO;
 
 /// <summary>
-/// 設定ウィンドウ表示中はカウントダウンを進めない待機ユーティリティ。
+/// 設定ウィンドウやライセンス表示中はカウントダウンを進めない待機ユーティリティ。
 /// </summary>
 internal static class PauseAwareCountdown
 {
     private static readonly TimeSpan PausePollInterval = TimeSpan.FromMilliseconds(200);
 
     /// <summary>
-    /// <paramref name="duration"/> だけ待つ。設定アプリ起動中は残り時間を減らさない。
+    /// <paramref name="duration"/> だけ待つ。<see cref="OperationPause"/> 中は残り時間を減らさない。
     /// </summary>
     /// <param name="maxSlice">1 回の待機上限（カウントダウン更新間隔）。</param>
     public static async Task WaitAsync(
@@ -40,7 +40,7 @@ internal static class PauseAwareCountdown
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (SettingAppLauncher.IsRunning())
+            if (OperationPause.ShouldPause())
             {
                 if (!wasPaused)
                 {

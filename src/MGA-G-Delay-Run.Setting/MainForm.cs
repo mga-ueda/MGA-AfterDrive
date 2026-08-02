@@ -55,8 +55,7 @@ public partial class MainForm : AppForm
         _optionsToolTip.SetToolTip(startMinimizedCheckBox, "起動時にウィンドウを出さず、タスクトレイへ格納した状態で開始します。");
         LayoutMaxWaitOptions();
         LoadSettingsAndEntries();
-        UpdateSaveButtonAppearance();
-        UpdateStartAllButtonState();
+        UpdateActionButtonAppearances();
         FitWindowToContent();
         CenterOnPrimaryDisplay();
     }
@@ -209,42 +208,39 @@ public partial class MainForm : AppForm
             SetDirty(true);
         }
 
-        UpdateStartAllButtonState();
-    }
-
-    private void UpdateStartAllButtonState()
-    {
-        var hasEntries = _entries.Count > 0;
-        startAllButton.Enabled = hasEntries;
-
-        if (hasEntries)
-        {
-            AppTheme.ApplyButton(startAllButton);
-        }
-        else
-        {
-            AppTheme.ApplyButton(startAllButton);
-            startAllButton.BackColor = AppTheme.Background;
-            startAllButton.ForeColor = AppTheme.ForegroundMuted;
-            startAllButton.FlatAppearance.MouseOverBackColor = AppTheme.Background;
-            startAllButton.Cursor = Cursors.Default;
-        }
+        UpdateActionButtonAppearances();
     }
 
     private void SetDirty(bool isDirty)
     {
         _isDirty = isDirty;
-        UpdateSaveButtonAppearance();
+        UpdateActionButtonAppearances();
     }
 
-    private void UpdateSaveButtonAppearance()
+    private void UpdateActionButtonAppearances()
     {
-        AppTheme.ApplyButton(saveButton);
+        var hasEntries = _entries.Count > 0;
+        startAllButton.Enabled = hasEntries;
+        if (hasEntries)
+        {
+            AppTheme.ApplyWarningButton(startAllButton);
+        }
+        else
+        {
+            AppTheme.ApplyDisabledButton(startAllButton);
+        }
+
+        saveButton.Enabled = _isDirty;
         if (_isDirty)
         {
-            saveButton.BackColor = AppTheme.Danger;
-            saveButton.FlatAppearance.MouseOverBackColor = AppTheme.DangerHover;
+            AppTheme.ApplyDangerButton(saveButton);
         }
+        else
+        {
+            AppTheme.ApplyDisabledButton(saveButton);
+        }
+
+        AppTheme.ApplyAccentButton(cancelButton);
     }
 
     private bool ConfirmDiscardChanges()

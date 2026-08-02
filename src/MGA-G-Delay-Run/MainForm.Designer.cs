@@ -134,13 +134,13 @@ partial class MainForm
         //
         AutoScaleDimensions = new SizeF(96F, 96F);
         AutoScaleMode = AutoScaleMode.Dpi;
-        ClientSize = new Size(720, 400);
+        ClientSize = new Size(720, 267);
         Controls.Add(logEditor);
         Controls.Add(statusBar);
         Controls.Add(captionBar);
         MaximizeBox = false;
         MinimizeBox = false;
-        MinimumSize = new Size(560, 320);
+        MinimumSize = new Size(560, 214);
         Name = "MainForm";
         StartPosition = FormStartPosition.Manual;
         Text = "MGA G Delay Run - Version 1.0.0";

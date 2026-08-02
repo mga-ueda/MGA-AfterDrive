@@ -23,13 +23,16 @@ public partial class MainForm : AppForm
     private CancellationTokenSource? _launchCts;
     private int _probeStarted;
     private int _healthMonitorStarted;
-    private int _licenseViewRequested;
     /// <summary>初回の遅延起動シーケンスが最後まで完了したか。</summary>
     private int _initialLaunchCompleted;
     /// <summary>初回起動が未完了のまま切断された。復帰時に全エントリを起動する。</summary>
     private int _needsFullRelaunch;
     private bool _allowExit;
     private bool _startMinimizedToTray;
+    /// <summary>ライセンス表示前のログ行。</summary>
+    private string[]? _logSnapshotBeforeLicense;
+    /// <summary>ライセンス表示中に届いたログ（復帰時に追記）。</summary>
+    private readonly List<string> _logBufferDuringLicense = [];
 
     public MainForm()
     {
@@ -40,6 +43,12 @@ public partial class MainForm : AppForm
         trayIcon.Icon = AppIcons.Default;
         trayIcon.Visible = true;
         _startMinimizedToTray = AppSettingsStore.Load().StartMinimizedToTray;
+        if (_startMinimizedToTray)
+        {
+            // 可視化前の万一のフラッシュを画面外へ逃がす
+            StartPosition = FormStartPosition.Manual;
+            Location = new Point(-32000, -32000);
+        }
 #if DEBUG
         AddDebugTrayMenuItems();
 #endif
@@ -306,37 +315,75 @@ public partial class MainForm : AppForm
 
     private void LicenseLink_LinkClicked(object? sender, LinkLabelLinkClickedEventArgs e)
     {
-        ShowLicensesInLog();
+        if (OperationPause.IsLicenseViewActive)
+        {
+            HideLicensesAndResume();
+        }
+        else
+        {
+            ShowLicensesInLog();
+        }
     }
 
     private void ShowLicensesInLog()
     {
-        Interlocked.Exchange(ref _licenseViewRequested, 1);
-
-        try
+        if (OperationPause.IsLicenseViewActive)
         {
-            if (!_lifetimeCts.IsCancellationRequested)
-            {
-                _lifetimeCts.Cancel();
-            }
-        }
-        catch (ObjectDisposedException)
-        {
+            return;
         }
 
-        SetTitleStatus(null);
+        _logSnapshotBeforeLicense = logEditor.CaptureLines();
+        _logBufferDuringLicense.Clear();
+        OperationPause.SetLicenseViewActive(true);
+        SetLicenseLinkText("Return");
+        SetTitleStatus($"一時停止中（{OperationPause.DescribeReason()}）");
 
         try
         {
             var lines = EmbeddedLicenses.LoadCombinedLines();
             logEditor.Clear();
             logEditor.AppendLines(lines);
+            logEditor.ScrollToStart();
         }
         catch (Exception ex)
         {
             logEditor.Clear();
             logEditor.AppendLine($"[ERROR] 埋め込みライセンスの読み込みに失敗しました: {ex.GetType().Name}: {ex.Message}");
+            logEditor.ScrollToStart();
         }
+    }
+
+    private void HideLicensesAndResume()
+    {
+        if (!OperationPause.IsLicenseViewActive)
+        {
+            return;
+        }
+
+        OperationPause.SetLicenseViewActive(false);
+        SetLicenseLinkText("Licenses");
+
+        logEditor.Clear();
+        if (_logSnapshotBeforeLicense is { Length: > 0 })
+        {
+            logEditor.AppendLines(_logSnapshotBeforeLicense);
+        }
+
+        _logSnapshotBeforeLicense = null;
+
+        if (_logBufferDuringLicense.Count > 0)
+        {
+            logEditor.AppendLines(_logBufferDuringLicense);
+            _logBufferDuringLicense.Clear();
+        }
+
+        // ステータスは待機ループ側が再開時に更新する
+    }
+
+    private void SetLicenseLinkText(string text)
+    {
+        licenseLink.Text = text;
+        licenseLink.LinkArea = new LinkArea(0, text.Length);
     }
 
     private void StatusBar_Paint(object? sender, PaintEventArgs e)
@@ -352,11 +399,6 @@ public partial class MainForm : AppForm
             var driveOk = await GoogleDriveStartupProbe
                 .RunAsync(AppendLog, SetTitleStatus, _lifetimeCts.Token)
                 .ConfigureAwait(true);
-
-            if (IsLicenseViewRequested())
-            {
-                return;
-            }
 
             if (!driveOk)
             {
@@ -384,11 +426,6 @@ public partial class MainForm : AppForm
                 .RunAsync(entries, AppendLog, SetTitleStatus, launchToken)
                 .ConfigureAwait(true);
 
-            if (IsLicenseViewRequested())
-            {
-                return;
-            }
-
             Interlocked.Exchange(ref _initialLaunchCompleted, 1);
             Interlocked.Exchange(ref _needsFullRelaunch, 0);
 
@@ -397,15 +434,10 @@ public partial class MainForm : AppForm
                     TimeSpan.FromSeconds(2),
                     TimeSpan.FromMilliseconds(200),
                     remaining => $"トレイ格納まで {Math.Ceiling(remaining.TotalSeconds):0} 秒",
-                    () => "トレイ格納を一時停止中（設定ウィンドウ）",
+                    () => $"トレイ格納を一時停止中（{OperationPause.DescribeReason()}）",
                     SetTitleStatus,
                     _lifetimeCts.Token)
                 .ConfigureAwait(true);
-
-            if (IsLicenseViewRequested())
-            {
-                return;
-            }
 
             HideToTray();
         }
@@ -413,28 +445,23 @@ public partial class MainForm : AppForm
         {
             // 切断による中断時の未完了フラグは HandleDriveRecoveryAsync 側で立てる
             // （復帰処理との競合でフラグが再セットされないようにする）
-            if (!IsLicenseViewRequested() && Volatile.Read(ref _initialLaunchCompleted) == 0)
+            if (Volatile.Read(ref _initialLaunchCompleted) == 0)
             {
                 AppendLog("起動シーケンスを中断しました。");
             }
         }
         catch (Exception ex)
         {
-            if (!IsLicenseViewRequested())
-            {
-                AppendLog($"[ERROR] 起動シーケンスで未処理の例外: {ex.GetType().Name}: {ex.Message}");
-            }
+            AppendLog($"[ERROR] 起動シーケンスで未処理の例外: {ex.GetType().Name}: {ex.Message}");
         }
         finally
         {
-            if (!IsLicenseViewRequested())
+            if (!OperationPause.IsLicenseViewActive)
             {
                 SetTitleStatus(null);
             }
         }
     }
-
-    private bool IsLicenseViewRequested() => Volatile.Read(ref _licenseViewRequested) != 0;
 
     private void HideToTray()
     {
@@ -462,6 +489,8 @@ public partial class MainForm : AppForm
         trayIcon.Visible = true;
         ShowInTaskbar = false;
         Hide();
+        // 次回 Restore で Opacity=0 のまま Acrylic を先にかけられるようにする
+        Opacity = 0;
         StartHealthMonitor();
     }
 
@@ -563,7 +592,7 @@ public partial class MainForm : AppForm
 
             if (!healthy)
             {
-                if (Volatile.Read(ref _initialLaunchCompleted) == 0 && !IsLicenseViewRequested())
+                if (Volatile.Read(ref _initialLaunchCompleted) == 0)
                 {
                     Interlocked.Exchange(ref _needsFullRelaunch, 1);
                     AppendLog("初回起動が完了する前に切断されたため、残りの起動をすべてキャンセルしました。復帰後に全エントリを再試行します。");
@@ -625,7 +654,7 @@ public partial class MainForm : AppForm
         finally
         {
             _recoveryGate.Release();
-            if (!IsLicenseViewRequested())
+            if (!OperationPause.IsLicenseViewActive)
             {
                 SetTitleStatus(null);
             }
@@ -666,13 +695,29 @@ public partial class MainForm : AppForm
             WindowState = FormWindowState.Normal;
         }
 
-        RevealNow();
-        Show();
-        Activate();
-        BringToFront();
+        // 表示位置を決めてから、Acrylic 準備中は画面外に置く（不透明フレームのチラつき防止）
+        if (Location.X <= -10000 || Location.Y <= -10000)
+        {
+            CenterOnPrimaryDisplay();
+        }
+
+        var targetLocation = Location;
+        Opacity = 0;
+        Location = new Point(-32000, -32000);
         BackColor = Color.Black;
         logEditor.BackColor = Color.Black;
+
+        Show();
+        Update();
+
         AcrylicBackdrop.Apply(this, AcrylicBackdrop.BlurType.Acrylic);
+        Update();
+
+        Location = targetLocation;
+        EnsureOnScreen();
+        MarkRevealed();
+        Activate();
+        BringToFront();
         logEditor.Invalidate();
     }
 
@@ -764,7 +809,7 @@ public partial class MainForm : AppForm
 
     public void AppendLog(string message)
     {
-        if (IsDisposed || Disposing || IsLicenseViewRequested())
+        if (IsDisposed || Disposing)
         {
             return;
         }
@@ -787,12 +832,19 @@ public partial class MainForm : AppForm
 
         try
         {
-            if (logEditor.IsDisposed || IsLicenseViewRequested())
+            if (logEditor.IsDisposed)
             {
                 return;
             }
 
-            logEditor.AppendLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}");
+            var line = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}";
+            if (OperationPause.IsLicenseViewActive)
+            {
+                _logBufferDuringLicense.Add(line);
+                return;
+            }
+
+            logEditor.AppendLine(line);
         }
         catch (ObjectDisposedException)
         {

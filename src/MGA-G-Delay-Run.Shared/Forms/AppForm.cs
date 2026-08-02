@@ -62,7 +62,8 @@ public class AppForm : Form
             _boundsRestored = WindowBoundsStore.TryRestore(this, WindowBoundsKey);
         }
 
-        if (!_boundsRestored)
+        // トレイ起動など非表示のまま進める場合は中央寄せしない（画面内に出すとフラッシュの原因になる）
+        if (!_boundsRestored && ShouldRevealOnShown)
         {
             CenterOnPrimaryDisplay();
         }
@@ -72,20 +73,22 @@ public class AppForm : Form
     {
         base.OnShown(e);
 
-        if (!PersistWindowBounds || !_boundsRestored)
-        {
-            CenterOnPrimaryDisplay();
-        }
-
         if (ShouldRevealOnShown)
         {
+            if (!PersistWindowBounds || !_boundsRestored)
+            {
+                CenterOnPrimaryDisplay();
+            }
+
             BringToFront();
             Activate();
             RevealAfterPaint();
             return;
         }
 
-        // トレイ起動など: Opacity=0 のまま描画準備だけ終え、可視化しない
+        // トレイ起動など: Opacity=0 のまま即座に隠す。
+        // ClearLayeredStyle すると Opacity=0 が効かなくなり一瞬全面表示されるため呼ばない。
+        Hide();
         BeginInvoke(() =>
         {
             if (IsDisposed || _revealed)
@@ -93,8 +96,6 @@ public class AppForm : Form
                 return;
             }
 
-            Update();
-            AcrylicBackdrop.ClearLayeredStyle(Handle);
             _revealed = true;
             OnRevealed();
         });
@@ -102,6 +103,7 @@ public class AppForm : Form
 
     /// <summary>
     /// トレイなどから初めてウィンドウを見せるときに呼ぶ。
+    /// Acrylic 適用前に呼ぶと不透明が一瞬見えるため、適用後に <see cref="MarkRevealed"/> する方が安全。
     /// </summary>
     protected void RevealNow()
     {
@@ -116,6 +118,14 @@ public class AppForm : Form
             AcrylicBackdrop.ClearLayeredStyle(Handle);
         }
 
+        _revealed = true;
+    }
+
+    /// <summary>
+    /// 可視化シーケンス完了を記録する（Opacity / Acrylic は呼び出し側で済ませている前提）。
+    /// </summary>
+    protected void MarkRevealed()
+    {
         _revealed = true;
     }
 
