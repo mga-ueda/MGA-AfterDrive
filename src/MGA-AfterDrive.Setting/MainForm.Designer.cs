@@ -318,7 +318,7 @@ partial class MainForm
         Name = "MainForm";
         SizeGripStyle = SizeGripStyle.Hide;
         StartPosition = FormStartPosition.Manual;
-        Text = "MGA AfterDrive Setting - Version 1.1.0";
+        Text = "MGA AfterDrive Setting - Version 1.0.0";
         DragDrop += EntryGrid_DragDrop;
         DragEnter += EntryGrid_DragEnter;
         rootLayout.ResumeLayout(false);
