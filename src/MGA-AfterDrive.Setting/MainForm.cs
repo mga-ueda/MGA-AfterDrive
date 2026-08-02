@@ -82,14 +82,15 @@ public partial class MainForm : AppForm
         startMinimizedCheckBox.ForeColor = AppTheme.Foreground;
         startMinimizedCheckBox.BackColor = Color.Transparent;
 
-        // 上段ラベルをエディタの垂直中央に。下段チェックは行間 Spacing
+        // 上段ラベルをエディタの垂直中央に。下段チェックは行間 Spacing（DPI 換算）
+        var spacing = LogicalToDeviceUnits(AppLayout.Spacing);
         var editorHeight = maxWaitTextBox.Height;
         var labelOffset = Math.Max(0, (editorHeight - maxWaitLabel.PreferredHeight) / 2);
         var unitOffset = Math.Max(0, (editorHeight - maxWaitUnitLabel.PreferredHeight) / 2);
-        maxWaitLabel.Margin = new Padding(0, labelOffset, AppLayout.Spacing, labelOffset);
-        maxWaitTextBox.Margin = new Padding(0, 0, AppLayout.Spacing, 0);
+        maxWaitLabel.Margin = new Padding(0, labelOffset, spacing, labelOffset);
+        maxWaitTextBox.Margin = new Padding(0, 0, spacing, 0);
         maxWaitUnitLabel.Margin = new Padding(0, unitOffset, 0, unitOffset);
-        startMinimizedCheckBox.Margin = new Padding(0, AppLayout.Spacing, 0, 0);
+        startMinimizedCheckBox.Margin = new Padding(0, spacing, 0, 0);
     }
 
     protected override void OnFormClosing(FormClosingEventArgs e)
@@ -328,7 +329,7 @@ public partial class MainForm : AppForm
             nameof(DelayEntry.Option) => _userSortDirection == ListSortDirection.Ascending
                 ? _entries.OrderBy(entry => entry.Option, StringComparer.OrdinalIgnoreCase)
                 : _entries.OrderByDescending(entry => entry.Option, StringComparer.OrdinalIgnoreCase),
-            nameof(DelayEntry.RestartMark) => _userSortDirection == ListSortDirection.Ascending
+            nameof(DelayEntry.Restart) => _userSortDirection == ListSortDirection.Ascending
                 ? _entries.OrderBy(entry => entry.Restart).ThenBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)
                 : _entries.OrderByDescending(entry => entry.Restart).ThenByDescending(entry => entry.Path, StringComparer.OrdinalIgnoreCase),
             _ => _entries,
@@ -380,7 +381,7 @@ public partial class MainForm : AppForm
                 nameof(DelayEntry.FileName) => "File Name",
                 nameof(DelayEntry.Path) => "Path",
                 nameof(DelayEntry.Option) => "Option",
-                nameof(DelayEntry.RestartMark) => "Restart",
+                nameof(DelayEntry.Restart) => "Restart",
                 _ => column.DataPropertyName,
             };
 
@@ -409,6 +410,13 @@ public partial class MainForm : AppForm
             : SortOrder.Descending;
     }
 
+    private static readonly TextFormatFlags HeaderTextFormat =
+        TextFormatFlags.HorizontalCenter
+        | TextFormatFlags.VerticalCenter
+        | TextFormatFlags.NoPadding
+        | TextFormatFlags.NoPrefix
+        | TextFormatFlags.SingleLine;
+
     private void EntryGrid_CellPainting(object? sender, DataGridViewCellPaintingEventArgs e)
     {
         if (e.RowIndex != -1 || e.ColumnIndex < 0 || e.Graphics is null || e.CellStyle is null)
@@ -417,6 +425,8 @@ public partial class MainForm : AppForm
         }
 
         var direction = GetSortDirectionForColumn(e.ColumnIndex);
+        var sidePadding = LogicalToDeviceUnits(6);
+        var glyphReserve = direction == SortOrder.None ? 0 : GetSortGlyphReserveWidth();
 
         e.Paint(
             e.CellBounds,
@@ -425,10 +435,14 @@ public partial class MainForm : AppForm
             | DataGridViewPaintParts.ContentBackground);
 
         var text = entryGrid.Columns[e.ColumnIndex].HeaderText;
-        var textBounds = Rectangle.Inflate(e.CellBounds, -6, 0);
+        var textBounds = new Rectangle(
+            e.CellBounds.X + sidePadding,
+            e.CellBounds.Y,
+            Math.Max(0, e.CellBounds.Width - (sidePadding * 2) - glyphReserve),
+            e.CellBounds.Height);
+
         if (direction != SortOrder.None)
         {
-            textBounds.Width -= 14;
             DrawSortGlyph(e.Graphics, e.CellBounds, direction);
         }
 
@@ -438,18 +452,17 @@ public partial class MainForm : AppForm
             e.CellStyle.Font ?? entryGrid.Font,
             textBounds,
             e.CellStyle.ForeColor,
-            TextFormatFlags.HorizontalCenter
-            | TextFormatFlags.VerticalCenter
-            | TextFormatFlags.EndEllipsis);
+            HeaderTextFormat);
 
         e.Handled = true;
     }
 
-    private static void DrawSortGlyph(Graphics graphics, Rectangle bounds, SortOrder direction)
+    private void DrawSortGlyph(Graphics graphics, Rectangle bounds, SortOrder direction)
     {
-        const int width = 10;
-        const int height = 6;
-        var x = bounds.Right - width - AppLayout.Spacing;
+        var width = LogicalToDeviceUnits(10);
+        var height = LogicalToDeviceUnits(6);
+        var margin = LogicalToDeviceUnits(4);
+        var x = bounds.Right - width - margin;
         var y = bounds.Top + ((bounds.Height - height) / 2);
 
         Point[] points = direction == SortOrder.Ascending
@@ -458,6 +471,25 @@ public partial class MainForm : AppForm
 
         using var brush = new SolidBrush(AppTheme.ForegroundMuted);
         graphics.FillPolygon(brush, points);
+    }
+
+    /// <summary>
+    /// ヘッダー右端のソート矢印＋余白。列幅計算と描画で共有する。
+    /// </summary>
+    private int GetSortGlyphReserveWidth()
+        => LogicalToDeviceUnits(10) + LogicalToDeviceUnits(4);
+
+    private int MeasureHeaderMinWidth(string headerText, Font font, bool includeSortGlyph)
+    {
+        var textWidth = TextRenderer.MeasureText(
+            headerText,
+            font,
+            Size.Empty,
+            HeaderTextFormat).Width;
+        var sidePadding = LogicalToDeviceUnits(6) * 2;
+        var glyphReserve = includeSortGlyph ? GetSortGlyphReserveWidth() : 0;
+        // 罫線・丸めの余裕
+        return textWidth + sidePadding + glyphReserve + LogicalToDeviceUnits(4);
     }
 
     private void OptimizeColumnWidths()
@@ -472,6 +504,20 @@ public partial class MainForm : AppForm
             : DataGridViewAutoSizeColumnsMode.AllCells;
 
         entryGrid.AutoResizeColumns(mode);
+
+        // AutoResize は自前ソート矢印分を見ない。既定ソートの Delay などでヘッダーが欠けるのを防ぐ。
+        // どの列でもソートしうるので、矢印分を常に最低幅へ含める。
+        var headerFont = entryGrid.ColumnHeadersDefaultCellStyle.Font ?? entryGrid.Font;
+        foreach (DataGridViewColumn column in entryGrid.Columns)
+        {
+            var minHeaderWidth = MeasureHeaderMinWidth(column.HeaderText, headerFont, includeSortGlyph: true);
+            column.MinimumWidth = Math.Max(column.MinimumWidth, minHeaderWidth);
+            if (column.Width < minHeaderWidth)
+            {
+                column.Width = minHeaderWidth;
+            }
+        }
+
         FitWindowToContent();
     }
 
@@ -492,14 +538,11 @@ public partial class MainForm : AppForm
             // スクロールバー分の幅を奪われないよう、先に無効化する
             entryGrid.ScrollBars = ScrollBars.None;
 
-            var rowHeight = entryGrid.RowTemplate.Height;
-            if (entryGrid.Rows.Count > 0)
-            {
-                rowHeight = Math.Max(rowHeight, entryGrid.Rows[0].Height);
-            }
-
+            var spacing = LogicalToDeviceUnits(AppLayout.Spacing);
+            var rowHeight = MeasureGridRowHeight();
             var visibleRows = Math.Max(MinVisibleRows, _entries.Count);
-            var headerHeight = entryGrid.ColumnHeadersHeight;
+            var headerHeight = Math.Max(entryGrid.ColumnHeadersHeight, entryGrid.ColumnHeadersDefaultCellStyle.Font?.Height ?? 0);
+            var idealGridHeight = headerHeight + (rowHeight * visibleRows) + GetGridChromeHeight();
 
             var columnsWidth = entryGrid.Columns.GetColumnsWidth(DataGridViewElementStates.Visible);
             if (entryGrid.RowHeadersVisible)
@@ -508,22 +551,38 @@ public partial class MainForm : AppForm
             }
 
             // 枠・セル余白・DPI 誤差で 1px 足りず横スクロールが出るのを防ぐ
-            var gridChrome = GetGridChromeWidth() + AppLayout.Spacing;
+            var gridChrome = GetGridChromeWidth() + spacing;
 
             var buttonBarContentWidth =
                 startAllButton.Width
                 + saveButton.Width
                 + cancelButton.Width
-                + (AppLayout.Spacing * 4);
+                + (spacing * 4);
 
             var optionsBarHeight = Math.Max(
                 optionsBar.PreferredSize.Height,
-                (AppLayout.Spacing * 2)
+                (spacing * 2)
                     + maxWaitTextBox.Height
-                    + AppLayout.Spacing
+                    + spacing
                     + startMinimizedCheckBox.PreferredSize.Height);
-            var buttonBarHeight = AppLayout.Spacing + AppLayout.ButtonHeight + AppLayout.Spacing;
-            var idealGridHeight = headerHeight + (rowHeight * visibleRows) + GetGridChromeHeight();
+
+            // AppLayout 定数は 96 DPI 基準。実ボタン高さと DPI 換算の大きい方を使う
+            var buttonHeight = Math.Max(
+                LogicalToDeviceUnits(AppLayout.ButtonHeight),
+                Math.Max(startAllButton.Height, Math.Max(saveButton.Height, cancelButton.Height)));
+            var buttonBarHeight = spacing + buttonHeight + spacing;
+
+            // Absolute 行と計算値を一致させ、Percent 行（グリッド）が削られないようにする
+            if (rootLayout.RowCount >= 3)
+            {
+                rootLayout.RowStyles[2].SizeType = SizeType.Absolute;
+                rootLayout.RowStyles[2].Height = buttonBarHeight;
+            }
+
+            var layoutMarginHeight =
+                optionsBar.Margin.Vertical
+                + entryGrid.Margin.Vertical
+                + buttonBar.Margin.Vertical;
 
             var area = Screen.FromControl(this).WorkingArea;
             var chromeW = Width - ClientSize.Width;
@@ -533,24 +592,23 @@ public partial class MainForm : AppForm
 
             var maxWaitRowWidth =
                 maxWaitLabel.PreferredWidth
-                + AppLayout.Spacing
+                + spacing
                 + maxWaitTextBox.Width
-                + AppLayout.Spacing
+                + spacing
                 + maxWaitUnitLabel.PreferredWidth;
             var optionsContentWidth =
                 Math.Max(maxWaitRowWidth, startMinimizedCheckBox.PreferredSize.Width)
-                + (AppLayout.Spacing * 2);
+                + (spacing * 2);
 
             var clientW = Math.Max(
                 Math.Max(columnsWidth + gridChrome, buttonBarContentWidth),
                 optionsContentWidth);
-            var clientH = optionsBarHeight + idealGridHeight + buttonBarHeight;
+            var clientH = optionsBarHeight + idealGridHeight + buttonBarHeight + layoutMarginHeight;
 
             // 画面に収まらない場合のみ縦スクロールを許可（横は出さない）
             var heightClamped = clientH > maxClientH;
             clientW = Math.Min(clientW, maxClientW);
             clientH = Math.Min(clientH, maxClientH);
-            entryGrid.ScrollBars = heightClamped ? ScrollBars.Vertical : ScrollBars.None;
 
             if (heightClamped)
             {
@@ -559,18 +617,48 @@ public partial class MainForm : AppForm
                     maxClientW);
             }
 
-            if (ClientSize.Width == clientW && ClientSize.Height == clientH)
+            if (ClientSize.Width != clientW || ClientSize.Height != clientH)
             {
-                return;
+                ClientSize = new Size(clientW, clientH);
             }
 
-            ClientSize = new Size(clientW, clientH);
+            PerformLayout();
+
+            // レイアウト後にグリッド実高さが不足していれば補正（計算誤差・DPI ずれの保険）
+            var gridDeficit = idealGridHeight - entryGrid.ClientSize.Height;
+            if (gridDeficit > 0)
+            {
+                var grown = Math.Min(ClientSize.Height + gridDeficit, maxClientH);
+                if (grown != ClientSize.Height)
+                {
+                    ClientSize = new Size(ClientSize.Width, grown);
+                    PerformLayout();
+                }
+            }
+
+            heightClamped = ClientSize.Height >= maxClientH
+                && entryGrid.ClientSize.Height < idealGridHeight;
+            entryGrid.ScrollBars = heightClamped ? ScrollBars.Vertical : ScrollBars.None;
             EnsureOnScreen();
         }
         finally
         {
             _fittingWindow = false;
         }
+    }
+
+    private int MeasureGridRowHeight()
+    {
+        var rowHeight = entryGrid.RowTemplate.Height;
+        foreach (DataGridViewRow row in entryGrid.Rows)
+        {
+            if (row.Height > rowHeight)
+            {
+                rowHeight = row.Height;
+            }
+        }
+
+        return Math.Max(1, rowHeight);
     }
 
     private int GetGridChromeWidth()
@@ -585,11 +673,12 @@ public partial class MainForm : AppForm
 
     private int GetGridChromeHeight()
     {
+        // 下端の罫線・DPI 丸め誤差用の余裕
         return entryGrid.BorderStyle switch
         {
             BorderStyle.Fixed3D => SystemInformation.Border3DSize.Height * 2,
             BorderStyle.FixedSingle => SystemInformation.BorderSize.Height * 2,
-            _ => 2,
+            _ => LogicalToDeviceUnits(2),
         };
     }
 
@@ -719,11 +808,23 @@ public partial class MainForm : AppForm
     }
 
     /// <summary>
-    /// Path が Google Drive マウント配下なら Restart を自動 ON（列に ✓ を表示）。
+    /// Path が Google Drive マウント配下なら Restart を自動 ON。
+    /// Drive 外の場合はユーザー設定を維持する（手動でオンオフ可能）。
     /// </summary>
     private static void ApplyRestartFromPath(DelayEntry entry)
     {
-        entry.Restart = GoogleDriveLocator.IsPathUnderGoogleDrive(entry.Path);
+        if (GoogleDriveLocator.IsPathUnderGoogleDrive(entry.Path))
+        {
+            entry.Restart = true;
+        }
+    }
+
+    private void EntryGrid_CurrentCellDirtyStateChanged(object? sender, EventArgs e)
+    {
+        if (entryGrid.IsCurrentCellDirty && entryGrid.CurrentCell is DataGridViewCheckBoxCell)
+        {
+            entryGrid.CommitEdit(DataGridViewDataErrorContexts.Commit);
+        }
     }
 
     private void EntryGrid_DataError(object? sender, DataGridViewDataErrorEventArgs e)
@@ -978,6 +1079,11 @@ public partial class MainForm : AppForm
         }
 
         if (IsDisposed || Disposing)
+        {
+            return;
+        }
+
+        if (ProcessExecutable.IsRunning(filePath))
         {
             return;
         }

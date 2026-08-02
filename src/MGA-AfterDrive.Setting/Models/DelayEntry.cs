@@ -45,39 +45,25 @@ public sealed class DelayEntry : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// Google Drive 上のアプリは切断時に強制終了し、復帰時に再起動する。
-    /// ユーザーが編集するのではなく、パスが Google Drive 配下かどうかで自動設定される。
+    /// Google Drive 切断時に強制終了し、復帰時に再起動するかどうか。
+    /// Google Drive 上のアプリは自動で ON になるが、手動のオンオフも可能。
     /// </summary>
     public bool Restart
     {
         get => _restart;
-        set
-        {
-            if (!SetField(ref _restart, value))
-            {
-                return;
-            }
-
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(RestartMark)));
-        }
+        set => SetField(ref _restart, value);
     }
-
-    /// <summary>
-    /// Restart 列の表示用（✓ / 空）。
-    /// </summary>
-    public string RestartMark => Restart ? "✓" : string.Empty;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    private bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
+    private void SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
     {
         if (EqualityComparer<T>.Default.Equals(field, value))
         {
-            return false;
+            return;
         }
 
         field = value;
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        return true;
     }
 }

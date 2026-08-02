@@ -106,6 +106,12 @@ public static class DelayedLaunchRunner
         string actionVerb)
     {
         var filePath = entry.Path?.Trim() ?? string.Empty;
+        if (ProcessExecutable.IsRunning(filePath))
+        {
+            log($"[{step}] 起動済みのためスキップしました: {label}");
+            return;
+        }
+
         if (!ProcessLaunch.TryStart(filePath, entry.Option, out var error))
         {
             log($"[{step}] [ERROR] {actionVerb}に失敗しました ({label}): {error}");

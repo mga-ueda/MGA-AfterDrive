@@ -1,0 +1,84 @@
+namespace MGA_AfterDrive.IO;
+
+/// <summary>
+/// 名前付き Mutex による単一インスタンス制御。
+/// </summary>
+public sealed class SingleInstanceGuard : IDisposable
+{
+    private readonly Mutex _mutex;
+    private bool _hasHandle;
+    private bool _disposed;
+
+    private SingleInstanceGuard(Mutex mutex, bool hasHandle)
+    {
+        _mutex = mutex;
+        _hasHandle = hasHandle;
+    }
+
+    /// <summary>
+    /// 他インスタンスがいなければ所有権を取得する。
+    /// 取得できない（既に起動中）ときは false。
+    /// </summary>
+    public static bool TryAcquire(string mutexName, out SingleInstanceGuard? guard)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(mutexName);
+
+        var mutex = new Mutex(false, mutexName);
+        var hasHandle = false;
+
+        try
+        {
+            try
+            {
+                hasHandle = mutex.WaitOne(0, exitContext: false);
+            }
+            catch (AbandonedMutexException)
+            {
+                // 前回プロセスが異常終了した場合は所有権を引き継ぐ
+                hasHandle = true;
+            }
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or WaitHandleCannotBeOpenedException)
+        {
+            mutex.Dispose();
+            guard = null;
+            return false;
+        }
+
+        if (!hasHandle)
+        {
+            mutex.Dispose();
+            guard = null;
+            return false;
+        }
+
+        guard = new SingleInstanceGuard(mutex, hasHandle: true);
+        return true;
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+
+        if (_hasHandle)
+        {
+            try
+            {
+                _mutex.ReleaseMutex();
+            }
+            catch (ApplicationException)
+            {
+                // 所有していない場合は無視
+            }
+
+            _hasHandle = false;
+        }
+
+        _mutex.Dispose();
+    }
+}

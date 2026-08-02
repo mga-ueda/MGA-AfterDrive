@@ -33,7 +33,7 @@ partial class MainForm
         fileNameColumn = new DataGridViewTextBoxColumn();
         pathColumn = new DataGridViewTextBoxColumn();
         optionColumn = new DataGridViewTextBoxColumn();
-        restartColumn = new DataGridViewTextBoxColumn();
+        restartColumn = new DataGridViewCheckBoxColumn();
         buttonBar = new TableLayoutPanel();
         buttonLayout = new FlowLayoutPanel();
         startAllButton = new AppButton();
@@ -76,6 +76,7 @@ partial class MainForm
         optionsBar.Controls.Add(maxWaitRow, 0, 0);
         optionsBar.Controls.Add(startMinimizedCheckBox, 0, 1);
         optionsBar.Dock = DockStyle.Fill;
+        optionsBar.Margin = Padding.Empty;
         optionsBar.Name = "optionsBar";
         optionsBar.Padding = new Padding(AppLayout.Spacing);
         optionsBar.RowCount = 2;
@@ -156,6 +157,7 @@ partial class MainForm
         entryGrid.ContextMenuStrip = gridContextMenu;
         entryGrid.Dock = DockStyle.Fill;
         entryGrid.EditMode = DataGridViewEditMode.EditOnKeystrokeOrF2;
+        entryGrid.Margin = Padding.Empty;
         entryGrid.MultiSelect = true;
         entryGrid.Name = "entryGrid";
         entryGrid.RowHeadersVisible = false;
@@ -165,6 +167,7 @@ partial class MainForm
         entryGrid.DragDrop += EntryGrid_DragDrop;
         entryGrid.DragEnter += EntryGrid_DragEnter;
         entryGrid.CellEndEdit += EntryGrid_CellEndEdit;
+        entryGrid.CurrentCellDirtyStateChanged += EntryGrid_CurrentCellDirtyStateChanged;
         entryGrid.DataError += EntryGrid_DataError;
         //
         // delayColumn
@@ -207,20 +210,18 @@ partial class MainForm
         optionColumn.Name = "optionColumn";
         optionColumn.SortMode = DataGridViewColumnSortMode.Programmatic;
         //
-        // restartColumn（読取専用。Google Drive 上のアプリは自動で ✓）
+        // restartColumn（Google Drive 上のアプリは自動で ON。手動のオンオフも可）
         //
         restartColumn.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
-        restartColumn.DataPropertyName = "RestartMark";
-        restartColumn.DefaultCellStyle = new DataGridViewCellStyle
-        {
-            Alignment = DataGridViewContentAlignment.MiddleCenter,
-        };
+        restartColumn.DataPropertyName = "Restart";
+        restartColumn.FalseValue = false;
         restartColumn.HeaderText = "Restart";
         restartColumn.MinimumWidth = 40;
         restartColumn.Name = "restartColumn";
-        restartColumn.ReadOnly = true;
         restartColumn.SortMode = DataGridViewColumnSortMode.Programmatic;
-        restartColumn.ToolTipText = "Google Drive 上のアプリは、切断時に強制終了し、復旧時に自動で再起動します";
+        restartColumn.ThreeState = false;
+        restartColumn.ToolTipText = "Google Drive が一時ダウンした時に、アプリを強制終了させ、復旧した時にアプリを起動し直すかどうか";
+        restartColumn.TrueValue = true;
         restartColumn.Width = 70;
         //
         // buttonBar
@@ -230,6 +231,7 @@ partial class MainForm
         buttonBar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         buttonBar.Controls.Add(buttonLayout, 1, 0);
         buttonBar.Dock = DockStyle.Fill;
+        buttonBar.Margin = Padding.Empty;
         buttonBar.Name = "buttonBar";
         // 上下はセル内で中央寄せし、Padding で高さを削らない（見切れ防止）
         buttonBar.Padding = new Padding(AppLayout.Spacing, 0, AppLayout.Spacing, 0);
@@ -316,7 +318,7 @@ partial class MainForm
         Name = "MainForm";
         SizeGripStyle = SizeGripStyle.Hide;
         StartPosition = FormStartPosition.Manual;
-        Text = "MGA AfterDrive Setting - Version 1.0.0";
+        Text = "MGA AfterDrive Setting - Version 1.1.0";
         DragDrop += EntryGrid_DragDrop;
         DragEnter += EntryGrid_DragEnter;
         rootLayout.ResumeLayout(false);
@@ -346,7 +348,7 @@ partial class MainForm
     private DataGridViewTextBoxColumn fileNameColumn;
     private DataGridViewTextBoxColumn pathColumn;
     private DataGridViewTextBoxColumn optionColumn;
-    private DataGridViewTextBoxColumn restartColumn;
+    private DataGridViewCheckBoxColumn restartColumn;
     private TableLayoutPanel buttonBar;
     private FlowLayoutPanel buttonLayout;
     private AppButton startAllButton;

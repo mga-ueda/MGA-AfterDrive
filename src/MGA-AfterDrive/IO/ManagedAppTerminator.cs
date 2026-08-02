@@ -3,7 +3,7 @@ using System.Diagnostics;
 namespace MGA_AfterDrive.IO;
 
 /// <summary>
-/// Google Drive 上（Restart 対象）のアプリを強制終了する。
+/// Restart 対象のアプリを強制終了する。
 /// </summary>
 public static class ManagedAppTerminator
 {
@@ -84,7 +84,7 @@ public static class ManagedAppTerminator
                         continue;
                     }
 
-                    if (!IsSameExecutable(process, targetPath, out var matchDetail))
+                    if (!ProcessExecutable.MatchesPath(process, targetPath, out var matchDetail))
                     {
                         log($"スキップ PID {process.Id}（{label}）: {matchDetail}");
                         continue;
@@ -124,37 +124,4 @@ public static class ManagedAppTerminator
             log($"一致するプロセスを終了できませんでした: {label}");
         }
     }
-
-    private static bool IsSameExecutable(Process process, string targetPath, out string detail)
-    {
-        try
-        {
-            var modulePath = process.MainModule?.FileName;
-            if (string.IsNullOrWhiteSpace(modulePath))
-            {
-                detail = "MainModule のパスが空です。";
-                return false;
-            }
-
-            if (!PathUtil.TryNormalize(modulePath, out var normalizedModule)
-                || !string.Equals(normalizedModule, targetPath, StringComparison.OrdinalIgnoreCase))
-            {
-                detail = $"パス不一致（{modulePath}）";
-                return false;
-            }
-
-            detail = "パス一致";
-            return true;
-        }
-        catch (Exception ex) when (
-            ex is InvalidOperationException
-                or System.ComponentModel.Win32Exception
-                or NotSupportedException)
-        {
-            // 昇格プロセス等で MainModule が読めない場合はプロセス名一致で終了対象とする
-            detail = $"MainModule を取得できません（{ex.GetType().Name}）。プロセス名で照合します";
-            return true;
-        }
-    }
-
 }
