@@ -129,6 +129,7 @@ public partial class MainForm : AppForm
             _entries.Clear();
             foreach (var entry in DelayEntryStore.Load())
             {
+                ApplyRestartFromPath(entry);
                 _entries.Add(entry);
             }
 
@@ -328,9 +329,9 @@ public partial class MainForm : AppForm
             nameof(DelayEntry.Option) => _userSortDirection == ListSortDirection.Ascending
                 ? _entries.OrderBy(entry => entry.Option, StringComparer.OrdinalIgnoreCase)
                 : _entries.OrderByDescending(entry => entry.Option, StringComparer.OrdinalIgnoreCase),
-            nameof(DelayEntry.Restart) => _userSortDirection == ListSortDirection.Ascending
-                ? _entries.OrderBy(entry => entry.Restart)
-                : _entries.OrderByDescending(entry => entry.Restart),
+            nameof(DelayEntry.RestartMark) => _userSortDirection == ListSortDirection.Ascending
+                ? _entries.OrderBy(entry => entry.Restart).ThenBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)
+                : _entries.OrderByDescending(entry => entry.Restart).ThenByDescending(entry => entry.Path, StringComparer.OrdinalIgnoreCase),
             _ => _entries,
         };
 
@@ -380,7 +381,7 @@ public partial class MainForm : AppForm
                 nameof(DelayEntry.FileName) => "File Name",
                 nameof(DelayEntry.Path) => "Path",
                 nameof(DelayEntry.Option) => "Option",
-                nameof(DelayEntry.Restart) => "Restart",
+                nameof(DelayEntry.RestartMark) => "Restart",
                 _ => column.DataPropertyName,
             };
 
@@ -628,14 +629,15 @@ public partial class MainForm : AppForm
                 continue;
             }
 
-            _entries.Add(new DelayEntry
+            var entry = new DelayEntry
             {
                 Delay = 0,
                 FileName = Path.GetFileName(fullPath),
                 Path = fullPath,
                 Option = string.Empty,
-                Restart = false,
-            });
+            };
+            ApplyRestartFromPath(entry);
+            _entries.Add(entry);
             added++;
         }
 
@@ -710,17 +712,19 @@ public partial class MainForm : AppForm
             {
                 // 不正パスはそのまま残し、保存時や Test Run で検出する
             }
+
+            ApplyRestartFromPath(entry);
         }
 
         OptimizeColumnWidths();
     }
 
-    private void EntryGrid_CurrentCellDirtyStateChanged(object? sender, EventArgs e)
+    /// <summary>
+    /// Path が Google Drive マウント配下なら Restart を自動 ON（列に ✓ を表示）。
+    /// </summary>
+    private static void ApplyRestartFromPath(DelayEntry entry)
     {
-        if (entryGrid.IsCurrentCellDirty && entryGrid.CurrentCell is DataGridViewCheckBoxCell)
-        {
-            entryGrid.CommitEdit(DataGridViewDataErrorContexts.Commit);
-        }
+        entry.Restart = GoogleDriveLocator.IsPathUnderGoogleDrive(entry.Path);
     }
 
     private void EntryGrid_DataError(object? sender, DataGridViewDataErrorEventArgs e)

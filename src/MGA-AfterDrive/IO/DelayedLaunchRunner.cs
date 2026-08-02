@@ -22,40 +22,61 @@ public static class DelayedLaunchRunner
         ArgumentNullException.ThrowIfNull(log);
         ArgumentNullException.ThrowIfNull(setTitleStatus);
 
-        var ordered = entries
-            .OrderBy(entry => entry.Delay)
-            .ThenBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-
         var actionVerb = respectEntryDelay ? "起動" : "再開";
         log(respectEntryDelay
-            ? $"遅延起動を開始します（{ordered.Length} 件）。"
-            : $"再開を開始します（{ordered.Length} 件、Delay 待ちなし）。");
+            ? $"遅延起動を開始します（{entries.Count} 件）。"
+            : $"再開を開始します（{entries.Count} 件、Delay 待ちなし）。");
 
-        // エントリ間の差分待機にすると、設定ウィンドウによる一時停止を残り時間に正しく反映できる
-        var previousDelaySeconds = 0;
+        var currentEntries = entries.ToList();
+        var launchedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var elapsedActive = TimeSpan.Zero;
 
-        for (var index = 0; index < ordered.Length; index++)
+        while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var entry = ordered[index];
+            var pending = currentEntries
+                .Where(entry => !string.IsNullOrWhiteSpace(entry.Path))
+                .Select(entry => (Entry: entry, Path: NormalizePath(entry.Path)))
+                .Where(item => item.Path.Length > 0 && !launchedPaths.Contains(item.Path))
+                .OrderBy(item => item.Entry.Delay)
+                .ThenBy(item => item.Path, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            if (pending.Length == 0)
+            {
+                break;
+            }
+
+            var (entry, path) = pending[0];
             var label = string.IsNullOrWhiteSpace(entry.FileName)
                 ? Path.GetFileName(entry.Path)
                 : entry.FileName;
-            var step = $"{index + 1}/{ordered.Length}";
+            var step = $"{launchedPaths.Count + 1}/{launchedPaths.Count + pending.Length}";
 
             if (respectEntryDelay)
             {
-                var delaySeconds = Math.Max(0, entry.Delay);
-                var gapSeconds = Math.Max(0, delaySeconds - previousDelaySeconds);
-                previousDelaySeconds = Math.Max(previousDelaySeconds, delaySeconds);
+                var targetDelay = TimeSpan.FromSeconds(Math.Max(0, entry.Delay));
+                var wait = targetDelay - elapsedActive;
 
-                if (gapSeconds > 0)
+                if (wait > TimeSpan.Zero)
                 {
-                    var wait = TimeSpan.FromSeconds(gapSeconds);
                     log($"[{step}] {FormatDuration(wait)} 待機してから{actionVerb}: {label}");
-                    await WaitWithCountdownAsync(wait, label, setTitleStatus, cancellationToken);
+                    var waitResult = await WaitWithCountdownAsync(
+                            wait,
+                            label,
+                            setTitleStatus,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+
+                    elapsedActive += waitResult.Elapsed;
+
+                    if (waitResult.InterruptedForReload)
+                    {
+                        currentEntries = DelayEntriesReader.Load().ToList();
+                        log("設定の変更を検知したため、起動タイマーを再設定します。");
+                        continue;
+                    }
                 }
                 else
                 {
@@ -68,6 +89,7 @@ public static class DelayedLaunchRunner
             }
 
             LaunchOne(entry, label, step, log, actionVerb);
+            launchedPaths.Add(path);
         }
 
         setTitleStatus(null);
@@ -115,7 +137,7 @@ public static class DelayedLaunchRunner
         }
     }
 
-    private static Task WaitWithCountdownAsync(
+    private static Task<PauseAwareCountdown.WaitResult> WaitWithCountdownAsync(
         TimeSpan wait,
         string label,
         Action<string?> setTitleStatus,
@@ -127,7 +149,20 @@ public static class DelayedLaunchRunner
             remaining => $"{label} 起動まで {FormatCountdown(remaining)}",
             () => $"{label} 起動待機を一時停止中（{OperationPause.DescribeReason()}）",
             setTitleStatus,
+            detectSettingEntryChanges: true,
             cancellationToken);
+    }
+
+    private static string NormalizePath(string path)
+    {
+        try
+        {
+            return Path.GetFullPath(path.Trim());
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return path.Trim();
+        }
     }
 
     private static string FormatCountdown(TimeSpan remaining)

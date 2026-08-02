@@ -33,7 +33,7 @@ partial class MainForm
         fileNameColumn = new DataGridViewTextBoxColumn();
         pathColumn = new DataGridViewTextBoxColumn();
         optionColumn = new DataGridViewTextBoxColumn();
-        restartColumn = new DataGridViewCheckBoxColumn();
+        restartColumn = new DataGridViewTextBoxColumn();
         buttonBar = new TableLayoutPanel();
         buttonLayout = new FlowLayoutPanel();
         startAllButton = new AppButton();
@@ -165,7 +165,6 @@ partial class MainForm
         entryGrid.DragDrop += EntryGrid_DragDrop;
         entryGrid.DragEnter += EntryGrid_DragEnter;
         entryGrid.CellEndEdit += EntryGrid_CellEndEdit;
-        entryGrid.CurrentCellDirtyStateChanged += EntryGrid_CurrentCellDirtyStateChanged;
         entryGrid.DataError += EntryGrid_DataError;
         //
         // delayColumn
@@ -208,18 +207,20 @@ partial class MainForm
         optionColumn.Name = "optionColumn";
         optionColumn.SortMode = DataGridViewColumnSortMode.Programmatic;
         //
-        // restartColumn
+        // restartColumn（読取専用。Google Drive 上のアプリは自動で ✓）
         //
         restartColumn.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
-        restartColumn.DataPropertyName = "Restart";
-        restartColumn.FalseValue = false;
+        restartColumn.DataPropertyName = "RestartMark";
+        restartColumn.DefaultCellStyle = new DataGridViewCellStyle
+        {
+            Alignment = DataGridViewContentAlignment.MiddleCenter,
+        };
         restartColumn.HeaderText = "Restart";
         restartColumn.MinimumWidth = 40;
         restartColumn.Name = "restartColumn";
+        restartColumn.ReadOnly = true;
         restartColumn.SortMode = DataGridViewColumnSortMode.Programmatic;
-        restartColumn.ThreeState = false;
-        restartColumn.ToolTipText = "Google Drive が一時ダウンした時に、アプリを強制終了させ、復旧した時にアプリを起動し直すかどうか";
-        restartColumn.TrueValue = true;
+        restartColumn.ToolTipText = "Google Drive 上のアプリは、切断時に強制終了し、復旧時に自動で再起動します";
         restartColumn.Width = 70;
         //
         // buttonBar
@@ -345,7 +346,7 @@ partial class MainForm
     private DataGridViewTextBoxColumn fileNameColumn;
     private DataGridViewTextBoxColumn pathColumn;
     private DataGridViewTextBoxColumn optionColumn;
-    private DataGridViewCheckBoxColumn restartColumn;
+    private DataGridViewTextBoxColumn restartColumn;
     private TableLayoutPanel buttonBar;
     private FlowLayoutPanel buttonLayout;
     private AppButton startAllButton;

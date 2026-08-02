@@ -9,6 +9,7 @@ public static class GoogleDriveStartupProbe
 {
     private const string ProcessName = "GoogleDriveFS";
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(3);
+    private static readonly TimeSpan PausePollInterval = TimeSpan.FromMilliseconds(200);
 
     /// <param name="log">ログ出力（タイムスタンプは呼び出し側が付与）。</param>
     /// <param name="setTitleStatus">ウィンドウタイトル状態。null で解除。</param>
@@ -133,13 +134,23 @@ public static class GoogleDriveStartupProbe
             if (OperationPause.ShouldPause())
             {
                 setTitleStatus($"{ProcessName} 待機を一時停止中（{OperationPause.DescribeReason()}）");
-                await Task.Delay(TimeSpan.FromMilliseconds(200), cancellationToken);
+                await Task.Delay(PausePollInterval, cancellationToken);
                 continue;
             }
 
             setTitleStatus($"{ProcessName} 待機中 {FormatCountdown(remaining)}");
             var slice = remaining < PollInterval ? remaining : PollInterval;
+            if (slice > PausePollInterval)
+            {
+                slice = PausePollInterval;
+            }
+
             await Task.Delay(slice, cancellationToken);
+            if (OperationPause.ShouldPause())
+            {
+                continue;
+            }
+
             remaining -= slice;
         }
 
@@ -171,13 +182,23 @@ public static class GoogleDriveStartupProbe
             if (OperationPause.ShouldPause())
             {
                 setTitleStatus($"アクセス確認を一時停止中（{OperationPause.DescribeReason()}）");
-                await Task.Delay(TimeSpan.FromMilliseconds(200), cancellationToken);
+                await Task.Delay(PausePollInterval, cancellationToken);
                 continue;
             }
 
             setTitleStatus($"アクセス確認中 {FormatCountdown(remaining)}");
             var slice = remaining < PollInterval ? remaining : PollInterval;
+            if (slice > PausePollInterval)
+            {
+                slice = PausePollInterval;
+            }
+
             await Task.Delay(slice, cancellationToken);
+            if (OperationPause.ShouldPause())
+            {
+                continue;
+            }
+
             remaining -= slice;
         }
     }

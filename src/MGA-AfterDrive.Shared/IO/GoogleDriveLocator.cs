@@ -12,6 +12,55 @@ public static class GoogleDriveLocator
     private const string PreferencesValueName = "PerAccountPreferences";
     private const string CurrentAccountValueName = "CurrentAccountToken";
 
+    /// <summary>
+    /// 指定パスが Google Drive マウント配下かどうかを判定する。
+    /// マウント解決に失敗した場合は false。
+    /// </summary>
+    public static bool IsPathUnderGoogleDrive(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        if (!TryGetMountPath(out var mountPath, out _))
+        {
+            return false;
+        }
+
+        return IsPathUnderMount(path, mountPath);
+    }
+
+    /// <summary>
+    /// 指定パスがマウントルート配下（またはマウントルートそのもの）かを判定する。
+    /// </summary>
+    public static bool IsPathUnderMount(string path, string mountPath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        ArgumentException.ThrowIfNullOrWhiteSpace(mountPath);
+
+        string fullPath;
+        string fullMount;
+        try
+        {
+            fullPath = Path.GetFullPath(path.Trim());
+            fullMount = Path.GetFullPath(mountPath.Trim());
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return false;
+        }
+
+        var mountRoot = fullMount.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        if (string.Equals(fullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), mountRoot, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var prefix = mountRoot + Path.DirectorySeparatorChar;
+        return fullPath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
+    }
+
     public static bool TryGetMountPath(out string mountPath, out string detail)
     {
         mountPath = string.Empty;

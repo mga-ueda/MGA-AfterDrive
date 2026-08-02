@@ -33,6 +33,8 @@ public partial class MainForm : AppForm
     private string[]? _logSnapshotBeforeLicense;
     /// <summary>ライセンス表示中に届いたログ（復帰時に追記）。</summary>
     private readonly List<string> _logBufferDuringLicense = [];
+    /// <summary>ステータス表示の世代。古い BeginInvoke を打ち消す。</summary>
+    private int _statusVersion;
 
     public MainForm()
     {
@@ -377,7 +379,9 @@ public partial class MainForm : AppForm
             _logBufferDuringLicense.Clear();
         }
 
-        // ステータスは待機ループ側が再開時に更新する
+        // 待機ループが動いていれば直後に正しい表示へ上書きする。
+        // 動いていなくても「一時停止中（ライセンス表示）」を残さない。
+        SetTitleStatus(null);
     }
 
     private void SetLicenseLinkText(string text)
@@ -566,8 +570,8 @@ public partial class MainForm : AppForm
     }
 
     /// <summary>
-    /// 切断時: 起動中なら全キャンセル＋未完了フラグ、Restart 対象を強制終了。
-    /// 復帰時: 未完了なら全エントリ、通常時は Restart 対象のみを Delay 順に起動。
+    /// 切断時: 起動中なら全キャンセル＋未完了フラグ、Google Drive 上アプリを強制終了。
+    /// 復帰時: 未完了なら全エントリ、通常時は Google Drive 上アプリのみを直ちに起動。
     /// </summary>
     private async Task HandleDriveRecoveryAsync(bool healthy)
     {
@@ -587,7 +591,7 @@ public partial class MainForm : AppForm
         {
             var allEntries = DelayEntriesReader.Load();
             var restartEntries = allEntries
-                .Where(entry => entry.Restart)
+                .Where(DelayEntryRestartPolicy.ShouldManage)
                 .ToArray();
 
             if (!healthy)
@@ -620,11 +624,11 @@ public partial class MainForm : AppForm
                 respectEntryDelay = false;
                 if (launchEntries.Count == 0)
                 {
-                    AppendLog("接続が復帰しました。再開対象の Restart エントリはありません。");
+                    AppendLog("接続が復帰しました。再開対象の Google Drive 上アプリはありません。");
                     return;
                 }
 
-                AppendLog($"接続が復帰しました。Restart チェック済み（{launchEntries.Count} 件）を直ちに再開します。");
+                AppendLog($"接続が復帰しました。Google Drive 上のアプリ（{launchEntries.Count} 件）を直ちに再開します。");
             }
 
             if (launchEntries.Count == 0)
@@ -764,6 +768,7 @@ public partial class MainForm : AppForm
 
     /// <summary>
     /// ステータスバー右寄せのカウントダウン／状態表示。タイトルバーは変更しない。
+    /// BeginInvoke の遅延適用で古い一時停止表示が復活しないよう世代番号で打ち消す。
     /// </summary>
     private void SetTitleStatus(string? status)
     {
@@ -772,11 +777,39 @@ public partial class MainForm : AppForm
             return;
         }
 
+        var version = Interlocked.Increment(ref _statusVersion);
+        var text = string.IsNullOrWhiteSpace(status) ? string.Empty : status.Trim();
+
+        void Apply()
+        {
+            if (IsDisposed || Disposing || statusLabel.IsDisposed)
+            {
+                return;
+            }
+
+            if (version != Volatile.Read(ref _statusVersion))
+            {
+                return;
+            }
+
+            try
+            {
+                statusLabel.Text = text;
+                statusLabel.Visible = text.Length > 0;
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+            catch (InvalidOperationException)
+            {
+            }
+        }
+
         if (InvokeRequired)
         {
             try
             {
-                BeginInvoke(() => SetTitleStatus(status));
+                BeginInvoke(Apply);
             }
             catch (ObjectDisposedException)
             {
@@ -788,23 +821,7 @@ public partial class MainForm : AppForm
             return;
         }
 
-        try
-        {
-            if (statusLabel.IsDisposed)
-            {
-                return;
-            }
-
-            var text = string.IsNullOrWhiteSpace(status) ? string.Empty : status.Trim();
-            statusLabel.Text = text;
-            statusLabel.Visible = text.Length > 0;
-        }
-        catch (ObjectDisposedException)
-        {
-        }
-        catch (InvalidOperationException)
-        {
-        }
+        Apply();
     }
 
     public void AppendLog(string message)

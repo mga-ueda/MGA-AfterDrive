@@ -3,7 +3,7 @@ using System.Diagnostics;
 namespace MGA_AfterDrive.IO;
 
 /// <summary>
-/// Setting で Restart にチェックされたアプリを強制終了する。
+/// Google Drive 上（Restart 対象）のアプリを強制終了する。
 /// </summary>
 public static class ManagedAppTerminator
 {
@@ -17,19 +17,18 @@ public static class ManagedAppTerminator
         ArgumentNullException.ThrowIfNull(log);
 
         var targets = entries
-            .Where(entry => entry.Restart)
-            .Where(entry => !string.IsNullOrWhiteSpace(entry.Path))
+            .Where(DelayEntryRestartPolicy.ShouldManage)
             .GroupBy(entry => NormalizePath(entry.Path), StringComparer.OrdinalIgnoreCase)
             .Select(group => group.First())
             .ToArray();
 
         if (targets.Length == 0)
         {
-            log("強制終了対象の Restart エントリはありません。");
+            log("強制終了対象の Google Drive 上アプリはありません。");
             return;
         }
 
-        log($"Restart チェック済みのアプリを強制終了します（{targets.Length} 件）。");
+        log($"Google Drive 上のアプリを強制終了します（{targets.Length} 件）。");
 
         foreach (var entry in targets)
         {

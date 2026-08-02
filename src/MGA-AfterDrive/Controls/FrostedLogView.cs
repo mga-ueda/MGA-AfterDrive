@@ -239,12 +239,6 @@ public sealed class FrostedLogView : Control
             return;
         }
 
-        var track = ScrollbarBounds;
-        using (var edgePen = new Pen(AppTheme.Border))
-        {
-            g.DrawLine(edgePen, track.Left, track.Top, track.Left, track.Bottom);
-        }
-
         var thumb = ThumbBounds;
         if (thumb.Height <= 0)
         {
