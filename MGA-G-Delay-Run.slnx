@@ -1,7 +1,0 @@
-<Solution>
-  <Folder Name="/src/">
-    <Project Path="src/MGA-G-Delay-Run.Shared/MGA-G-Delay-Run.Shared.csproj" />
-    <Project Path="src/MGA-G-Delay-Run/MGA-G-Delay-Run.csproj" />
-    <Project Path="src/MGA-G-Delay-Run.Setting/MGA-G-Delay-Run.Setting.csproj" />
-  </Folder>
-</Solution>

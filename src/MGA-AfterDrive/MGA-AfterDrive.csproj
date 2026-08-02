@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>MGA_AfterDrive</RootNamespace>
+    <AssemblyName>MGA-AfterDrive</AssemblyName>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <InformationalVersion>1.0.0</InformationalVersion>
+    <Product>MGA AfterDrive</Product>
+    <AssemblyTitle>MGA AfterDrive</AssemblyTitle>
+    <ApplicationIcon>..\..\assets\app.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MGA-AfterDrive.Shared\MGA-AfterDrive.Shared.csproj" />
+    <!-- Setting を同時ビルド（EXE 参照はしない。起動は SettingAppLauncher が探す） -->
+    <ProjectReference Include="..\MGA-AfterDrive.Setting\MGA-AfterDrive.Setting.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\licenses\WinBlur-LICENSE.txt" LogicalName="MGA_AfterDrive.Licenses.WinBlur-LICENSE.txt" />
+    <EmbeddedResource Include="..\..\THIRD_PARTY_NOTICES.md" LogicalName="MGA_AfterDrive.Licenses.THIRD_PARTY_NOTICES.md" />
+    <Content Include="..\..\licenses\WinBlur-LICENSE.txt" Link="licenses\WinBlur-LICENSE.txt" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\THIRD_PARTY_NOTICES.md" Link="THIRD_PARTY_NOTICES.md" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- Setting をメイン出力へ同梱（トレイメニュー / 未設定時起動用） -->
+  <Target Name="CopySettingApp" AfterTargets="Build">
+    <PropertyGroup>
+      <_SettingOutDir>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\MGA-AfterDrive.Setting\bin\$(Configuration)\$(TargetFramework)\'))</_SettingOutDir>
+    </PropertyGroup>
+    <ItemGroup>
+      <_SettingFiles Include="$(_SettingOutDir)MGA-AfterDrive.Setting.exe" />
+      <_SettingFiles Include="$(_SettingOutDir)MGA-AfterDrive.Setting.dll" />
+      <_SettingFiles Include="$(_SettingOutDir)MGA-AfterDrive.Setting.runtimeconfig.json" />
+      <_SettingFiles Include="$(_SettingOutDir)MGA-AfterDrive.Setting.deps.json" />
+      <_SettingFiles Include="$(_SettingOutDir)MGA-AfterDrive.Setting.pdb" Condition="Exists('$(_SettingOutDir)MGA-AfterDrive.Setting.pdb')" />
+    </ItemGroup>
+    <Copy
+      SourceFiles="@(_SettingFiles)"
+      DestinationFolder="$(TargetDir)"
+      SkipUnchangedFiles="true"
+      Condition="Exists('$(_SettingOutDir)MGA-AfterDrive.Setting.dll')" />
+  </Target>
+
+</Project>

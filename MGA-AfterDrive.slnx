@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/MGA-AfterDrive.Shared/MGA-AfterDrive.Shared.csproj" />
+    <Project Path="src/MGA-AfterDrive/MGA-AfterDrive.csproj" />
+    <Project Path="src/MGA-AfterDrive.Setting/MGA-AfterDrive.Setting.csproj" />
+  </Folder>
+</Solution>

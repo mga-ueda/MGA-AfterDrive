@@ -4,24 +4,24 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "MGA G Delay Run",
+      "name": "MGA AfterDrive",
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build-run",
-      "program": "${workspaceFolder}/src/MGA-G-Delay-Run/bin/Debug/net8.0-windows/MGA-G-Delay-Run.dll",
+      "program": "${workspaceFolder}/src/MGA-AfterDrive/bin/Debug/net8.0-windows/MGA-AfterDrive.dll",
       "args": [],
-      "cwd": "${workspaceFolder}/src/MGA-G-Delay-Run",
+      "cwd": "${workspaceFolder}/src/MGA-AfterDrive",
       "console": "internalConsole",
       "stopAtEntry": false
     },
     {
-      "name": "MGA G Delay Run Setting",
+      "name": "MGA AfterDrive Setting",
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build-setting",
-      "program": "${workspaceFolder}/src/MGA-G-Delay-Run.Setting/bin/Debug/net8.0-windows/MGA-G-Delay-Run.Setting.dll",
+      "program": "${workspaceFolder}/src/MGA-AfterDrive.Setting/bin/Debug/net8.0-windows/MGA-AfterDrive.Setting.dll",
       "args": [],
-      "cwd": "${workspaceFolder}/src/MGA-G-Delay-Run.Setting",
+      "cwd": "${workspaceFolder}/src/MGA-AfterDrive.Setting",
       "console": "internalConsole",
       "stopAtEntry": false
     }

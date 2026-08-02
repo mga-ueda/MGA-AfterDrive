@@ -1,5 +1,5 @@
 ---
-description: MGA G Delay Run の UI / レイアウト設計指針。コーディング前に必ず確認する。
+description: MGA AfterDrive の UI / レイアウト設計指針。コーディング前に必ず確認する。
 alwaysApply: true
 ---
 
@@ -15,10 +15,10 @@ UI・フォーム・コントロールを追加・変更する前に、本指針
 
 ## アプリ名 / バージョン
 
-- 正式名称は **MGA G Delay Run**（設定アプリは **MGA G Delay Run Setting**）。
+- 正式名称は **MGA AfterDrive**（設定アプリは **MGA AfterDrive Setting**）。
 - 現在のバージョンは **1.0.0**。
 - ウィンドウタイトルの表記は `正式名称 - Version 1.0.0` とする。
-- リポジトリ名やアセンブリ名（`MGA-G-Delay-Run` など）と混同しない。
+- リポジトリ名やアセンブリ名（`MGA-AfterDrive` など）と混同しない。
 - バージョン番号を上げるときは `.csproj` の `Version` / `AssemblyVersion` / `FileVersion` / `InformationalVersion` を揃えて更新する。
 
 ## ダークテーマ（必須）
@@ -86,17 +86,17 @@ public partial class SettingsForm : AppForm { }
 
 設定や状態をファイルに記憶する必要が出た場合、次の場所に保存する。
 
-- ルート: `%LocalAppData%\MGA`（例: `C:\Users\ueda\AppData\Local\MGA`）
-- アプリフォルダ: その下に正式名称で作成 → `%LocalAppData%\MGA\MGA G Delay Run\`
+- ルート: `%LocalAppData%\MGA`（例: `C:\Users\<UserName>\AppData\Local\MGA`）
+- アプリフォルダ: その下に正式名称で作成 → `%LocalAppData%\MGA\MGA AfterDrive\`
 - ユーザーごとの `AppData\Local` 以外（exe 隣、Documents、レジストリのみ 等）へ設定を置かない。
 - パスはユーザー名をハードコードせず、`Environment.SpecialFolder.LocalApplicationData` から組み立てる。
 
 ```csharp
 // ✅ GOOD
 var dir = Path.Combine(
-    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-    "MGA",
-    "MGA G Delay Run");
+ Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+ "MGA",
+ "MGA AfterDrive");
 Directory.CreateDirectory(dir);
 var settingsPath = Path.Combine(dir, "settings.json");
 ```
@@ -114,4 +114,4 @@ var settingsPath = Path.Combine(dir, "settings.json");
 - [ ] 異なる DPI でも想定どおり見える
 - [ ] フォームは `AppForm` 継承で最前面表示になっている
 - [ ] フォームは描画完了後に表示されている
-- [ ] 設定ファイルは `%LocalAppData%\MGA\MGA G Delay Run\` 配下に保存している
+- [ ] 設定ファイルは `%LocalAppData%\MGA\MGA AfterDrive\` 配下に保存している
