@@ -3,7 +3,7 @@ using System.Diagnostics;
 namespace MGA_AfterDrive.IO;
 
 /// <summary>
-/// 実行ファイルパスと実行中プロセスの照合。
+/// 実行ファイルパスと実行中プロセスの照合・列挙。
 /// </summary>
 public static class ProcessExecutable
 {
@@ -25,12 +25,7 @@ public static class ProcessExecutable
             return false;
         }
 
-        Process[] processes;
-        try
-        {
-            processes = Process.GetProcessesByName(processName);
-        }
-        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+        if (!TryGetByName(processName, out var processes, out _))
         {
             return false;
         }
@@ -54,10 +49,98 @@ public static class ProcessExecutable
         }
         finally
         {
+            DisposeAll(processes);
+        }
+    }
+
+    /// <summary>
+    /// プロセス名に一致するプロセスが 1 つ以上あるか。列挙失敗時は false。
+    /// </summary>
+    public static bool AnyByName(string processName)
+        => TryAnyByName(processName, out var any, out _) && any;
+
+    /// <summary>
+    /// プロセス名で列挙し、1 つ以上あるかを返す。
+    /// 列挙自体に失敗したときは false を返し <paramref name="error"/> に例外を入れる。
+    /// </summary>
+    public static bool TryAnyByName(string processName, out bool any, out Exception? error)
+    {
+        any = false;
+        if (!TryGetByName(processName, out var processes, out error))
+        {
+            return false;
+        }
+
+        try
+        {
+            any = processes.Length > 0;
+            return true;
+        }
+        finally
+        {
+            DisposeAll(processes);
+        }
+    }
+
+    /// <summary>
+    /// プロセス名で列挙し、各プロセスに対して action を実行する（終了時に必ず Dispose）。
+    /// 列挙失敗時は false。
+    /// </summary>
+    public static bool TryForEachByName(string processName, Action<Process> action, out Exception? error)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+
+        if (!TryGetByName(processName, out var processes, out error))
+        {
+            return false;
+        }
+
+        try
+        {
             foreach (var process in processes)
             {
-                process.Dispose();
+                action(process);
             }
+
+            return true;
+        }
+        finally
+        {
+            DisposeAll(processes);
+        }
+    }
+
+    /// <summary>
+    /// プロセス名で列挙する。成功時は呼び出し側が <see cref="DisposeAll"/> すること。
+    /// </summary>
+    public static bool TryGetByName(string processName, out Process[] processes, out Exception? error)
+    {
+        processes = [];
+        error = null;
+
+        if (string.IsNullOrWhiteSpace(processName))
+        {
+            return true;
+        }
+
+        try
+        {
+            processes = Process.GetProcessesByName(processName);
+            return true;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            error = ex;
+            processes = [];
+            return false;
+        }
+    }
+
+    public static void DisposeAll(Process[] processes)
+    {
+        foreach (var process in processes)
+        {
+            process.Dispose();
         }
     }
 

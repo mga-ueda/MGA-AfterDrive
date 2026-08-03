@@ -1,5 +1,3 @@
-using System.Diagnostics;
-
 namespace MGA_AfterDrive.IO;
 
 /// <summary>
@@ -205,27 +203,14 @@ public static class GoogleDriveStartupProbe
 
     internal static bool IsProcessRunning()
     {
-        Process[] processes;
-        try
+        if (!ProcessExecutable.TryAnyByName(ProcessName, out var any, out var error))
         {
-            processes = Process.GetProcessesByName(ProcessName);
-        }
-        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
-        {
-            throw new InvalidOperationException($"プロセス {ProcessName} の列挙に失敗しました。", ex);
+            throw new InvalidOperationException(
+                $"プロセス {ProcessName} の列挙に失敗しました。",
+                error);
         }
 
-        try
-        {
-            return processes.Length > 0;
-        }
-        finally
-        {
-            foreach (var process in processes)
-            {
-                process.Dispose();
-            }
-        }
+        return any;
     }
 
     internal static bool TryAccess(string mountPath, out string detail)

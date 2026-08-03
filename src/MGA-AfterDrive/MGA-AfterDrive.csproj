@@ -45,8 +45,19 @@
       Condition="Exists('$(_SettingOutDir)MGA-AfterDrive.Setting.exe')" />
   </Target>
 
-  <!-- 単一ファイル公開: Setting を単一 EXE でビルドし、メインへ埋め込む -->
-  <Target Name="PublishAndEmbedSetting" BeforeTargets="BeforeCompile" Condition="'$(PublishSingleFile)' == 'true'">
+  <!--
+    単一ファイル公開: Setting を単一 EXE でビルドし、メインへ埋め込む。
+    BeforeCompile では EmbeddedResource が CoreCompile の /resource に乗らないため、
+    PrepareResources の依存として先に実行する。
+  -->
+  <PropertyGroup Condition="'$(PublishSingleFile)' == 'true'">
+    <PrepareResourcesDependsOn>
+      PublishAndEmbedSetting;
+      $(PrepareResourcesDependsOn)
+    </PrepareResourcesDependsOn>
+  </PropertyGroup>
+
+  <Target Name="PublishAndEmbedSetting" Condition="'$(PublishSingleFile)' == 'true'">
     <PropertyGroup>
       <_SettingPublishDir>$([System.IO.Path]::GetFullPath('$(IntermediateOutputPath)setting-singlefile\'))</_SettingPublishDir>
       <_SettingPublishExe>$(_SettingPublishDir)MGA-AfterDrive.Setting.exe</_SettingPublishExe>
@@ -60,7 +71,11 @@
       Text="単一ファイル公開用の Setting EXE を生成できませんでした: $(_SettingPublishExe)"
       Condition="!Exists('$(_SettingPublishExe)')" />
     <ItemGroup>
-      <EmbeddedResource Include="$(_SettingPublishExe)" LogicalName="MGA_AfterDrive.Bundled.Setting.exe" />
+      <EmbeddedResource Include="$(_SettingPublishExe)">
+        <LogicalName>MGA_AfterDrive.Bundled.Setting.exe</LogicalName>
+        <Type>Non-Resx</Type>
+        <WithCulture>false</WithCulture>
+      </EmbeddedResource>
     </ItemGroup>
   </Target>
 

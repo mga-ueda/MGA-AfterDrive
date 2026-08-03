@@ -24,7 +24,11 @@ public static class PathUtil
             normalized = Normalize(path);
             return true;
         }
-        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        catch (Exception ex) when (
+            ex is ArgumentException
+                or NotSupportedException
+                or PathTooLongException
+                or UnauthorizedAccessException)
         {
             return false;
         }

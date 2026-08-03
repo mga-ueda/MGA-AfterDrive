@@ -23,6 +23,4 @@ public static class AppVersion
         var version = assembly.GetName().Version;
         return version is null ? "0.0.0" : $"{version.Major}.{version.Minor}.{version.Build}";
     }
-
-    public static string FromExecutingAssembly() => From(Assembly.GetExecutingAssembly());
 }

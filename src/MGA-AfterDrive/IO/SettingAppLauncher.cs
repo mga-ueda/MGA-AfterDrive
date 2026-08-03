@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Reflection;
 using System.Security.Cryptography;
 
 namespace MGA_AfterDrive.IO;
@@ -10,37 +9,13 @@ namespace MGA_AfterDrive.IO;
 /// </summary>
 public static class SettingAppLauncher
 {
-    private const string SettingExeName = "MGA-AfterDrive.Setting.exe";
-    private const string SettingProcessName = "MGA-AfterDrive.Setting";
     private const string BundledResourceName = "MGA_AfterDrive.Bundled.Setting.exe";
 
     /// <summary>
     /// 設定アプリが起動中かどうか。
     /// </summary>
     public static bool IsRunning()
-    {
-        Process[] processes;
-        try
-        {
-            processes = Process.GetProcessesByName(SettingProcessName);
-        }
-        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
-        {
-            return false;
-        }
-
-        try
-        {
-            return processes.Length > 0;
-        }
-        finally
-        {
-            foreach (var process in processes)
-            {
-                process.Dispose();
-            }
-        }
-    }
+        => ProcessExecutable.AnyByName(AppExecutableNames.SettingProcessName);
 
     public static bool TryStart(out string error)
     {
@@ -51,7 +26,7 @@ public static class SettingAppLauncher
         {
             if (string.IsNullOrWhiteSpace(error))
             {
-                error = $"{SettingExeName} が見つかりません。";
+                error = $"{AppExecutableNames.SettingExeFileName} が見つかりません。";
             }
 
             return false;
@@ -59,9 +34,15 @@ public static class SettingAppLauncher
 
         try
         {
+            var hostExe = Environment.ProcessPath;
+            var arguments = string.IsNullOrWhiteSpace(hostExe)
+                ? string.Empty
+                : AppExecutableNames.FormatHostExeArgument(hostExe);
+
             var startInfo = new ProcessStartInfo
             {
                 FileName = exePath,
+                Arguments = arguments,
                 UseShellExecute = false,
                 WorkingDirectory = Path.GetDirectoryName(exePath) ?? Environment.CurrentDirectory,
             };
@@ -69,13 +50,13 @@ public static class SettingAppLauncher
             using var process = Process.Start(startInfo);
             if (process is null)
             {
-                error = $"{SettingExeName} を起動できませんでした。";
+                error = $"{AppExecutableNames.SettingExeFileName} を起動できませんでした。";
                 return false;
             }
 
             if (process.WaitForExit(300) && process.ExitCode != 0)
             {
-                error = $"{SettingExeName} の起動に失敗しました。(exit {process.ExitCode})";
+                error = $"{AppExecutableNames.SettingExeFileName} の起動に失敗しました。(exit {process.ExitCode})";
                 return false;
             }
 
@@ -115,7 +96,8 @@ public static class SettingAppLauncher
 
     private static IEnumerable<string> EnumerateSidecarCandidates(string baseDirectory)
     {
-        yield return Path.Combine(baseDirectory, SettingExeName);
+        yield return Path.Combine(baseDirectory, AppExecutableNames.SettingExeFileName);
+        yield return Path.Combine(AppPaths.GetBundledAppDirectory(), AppExecutableNames.SettingExeFileName);
 
         foreach (var configuration in new[] { "Debug", "Release" })
         {
@@ -126,7 +108,7 @@ public static class SettingAppLauncher
                 "bin",
                 configuration,
                 "net8.0-windows",
-                SettingExeName));
+                AppExecutableNames.SettingExeFileName));
         }
     }
 
@@ -135,10 +117,13 @@ public static class SettingAppLauncher
         exePath = null;
         error = string.Empty;
 
-        var assembly = Assembly.GetExecutingAssembly();
+        var assembly = typeof(SettingAppLauncher).Assembly;
         using var stream = assembly.GetManifestResourceStream(BundledResourceName);
         if (stream is null)
         {
+            error =
+                $"{AppExecutableNames.SettingExeFileName} の埋め込みリソース（{BundledResourceName}）が見つかりません。"
+                + " 単一 EXE 公開のビルドが不完全な可能性があります。";
             return false;
         }
 
@@ -146,7 +131,7 @@ public static class SettingAppLauncher
         {
             var directory = AppPaths.GetBundledAppDirectory();
             Directory.CreateDirectory(directory);
-            var destination = Path.Combine(directory, SettingExeName);
+            var destination = Path.Combine(directory, AppExecutableNames.SettingExeFileName);
 
             if (!NeedsRewrite(destination, stream))
             {

@@ -268,17 +268,7 @@ public partial class MainForm : AppForm
     }
 
     private void ApplyTrayMenuTheme()
-    {
-        trayMenu.BackColor = AppTheme.Surface;
-        trayMenu.ForeColor = AppTheme.Foreground;
-        trayMenu.RenderMode = ToolStripRenderMode.System;
-
-        foreach (ToolStripItem item in trayMenu.Items)
-        {
-            item.BackColor = AppTheme.Surface;
-            item.ForeColor = AppTheme.Foreground;
-        }
-    }
+        => AppTheme.ApplyContextMenu(trayMenu);
 
 #if DEBUG
     /// <summary>
@@ -747,15 +737,17 @@ public partial class MainForm : AppForm
         ToggleTrayWindow();
     }
 
+    private void SettingLink_LinkClicked(object? sender, LinkLabelLinkClickedEventArgs e)
+        => OpenSettingApp();
+
     private void SettingMenuItem_Click(object? sender, EventArgs e)
+        => OpenSettingApp();
+
+    private void OpenSettingApp()
     {
         if (!SettingAppLauncher.TryStart(out var error))
         {
-            MessageBox.Show(
-                error,
-                AppInfo.ProductName,
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Error);
+            AppDialogs.Error(null, AppInfo.ProductName, error);
         }
     }
 

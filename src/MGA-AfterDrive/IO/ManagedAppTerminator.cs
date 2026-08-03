@@ -55,19 +55,15 @@ public static class ManagedAppTerminator
             return;
         }
 
-        Process[] processes;
-        try
+        if (!ProcessExecutable.TryGetByName(processName, out var processes, out var enumerateError))
         {
-            processes = Process.GetProcessesByName(processName);
-        }
-        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
-        {
-            log($"[ERROR] プロセスの列挙に失敗しました ({label}): {ex.Message}");
+            log($"[ERROR] プロセスの列挙に失敗しました ({label}): {enumerateError?.Message}");
             return;
         }
 
         if (processes.Length == 0)
         {
+            ProcessExecutable.DisposeAll(processes);
             log($"起動していません: {label}");
             return;
         }
@@ -117,10 +113,7 @@ public static class ManagedAppTerminator
         }
         finally
         {
-            foreach (var process in processes)
-            {
-                process.Dispose();
-            }
+            ProcessExecutable.DisposeAll(processes);
         }
 
         if (killed == 0)

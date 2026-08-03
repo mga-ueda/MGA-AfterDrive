@@ -1,12 +1,13 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using MGA_AfterDrive.IO;
 
 namespace MGA_AfterDrive.Setting.Models;
 
 /// <summary>
 /// 遅延実行エントリ。
 /// </summary>
-public sealed class DelayEntry : INotifyPropertyChanged
+public sealed class DelayEntry : INotifyPropertyChanged, IRestartableDelayEntry
 {
     private int _delay;
     private string _fileName = string.Empty;

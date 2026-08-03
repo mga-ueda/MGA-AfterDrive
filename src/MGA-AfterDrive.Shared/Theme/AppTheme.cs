@@ -180,6 +180,24 @@ public static class AppTheme
         button.Cursor = Cursors.Default;
     }
 
+    /// <summary>
+    /// ContextMenuStrip と配下アイテムへダークテーマを適用する。
+    /// </summary>
+    public static void ApplyContextMenu(ContextMenuStrip menu)
+    {
+        ArgumentNullException.ThrowIfNull(menu);
+
+        menu.BackColor = Surface;
+        menu.ForeColor = Foreground;
+        menu.RenderMode = ToolStripRenderMode.System;
+
+        foreach (ToolStripItem item in menu.Items)
+        {
+            item.BackColor = Surface;
+            item.ForeColor = Foreground;
+        }
+    }
+
     private static void ApplyDataGridView(DataGridView grid)
     {
         grid.BackgroundColor = Background;

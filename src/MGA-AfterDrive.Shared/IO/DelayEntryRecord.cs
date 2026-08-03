@@ -3,7 +3,7 @@ namespace MGA_AfterDrive.IO;
 /// <summary>
 /// 保存された遅延実行エントリ（読み取り用）。
 /// </summary>
-public sealed class DelayEntryRecord
+public sealed class DelayEntryRecord : IRestartableDelayEntry
 {
     public int Delay { get; set; }
 

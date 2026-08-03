@@ -39,14 +39,8 @@ public static class GoogleDriveLocator
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         ArgumentException.ThrowIfNullOrWhiteSpace(mountPath);
 
-        string fullPath;
-        string fullMount;
-        try
-        {
-            fullPath = Path.GetFullPath(path.Trim());
-            fullMount = Path.GetFullPath(mountPath.Trim());
-        }
-        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        if (!PathUtil.TryNormalize(path, out var fullPath)
+            || !PathUtil.TryNormalize(mountPath, out var fullMount))
         {
             return false;
         }

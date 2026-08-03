@@ -1,3 +1,4 @@
+using MGA_AfterDrive.Forms;
 using MGA_AfterDrive.IO;
 using MGA_AfterDrive.Theme;
 
@@ -23,21 +24,19 @@ static class Program
 
         if (acquire == SingleInstanceAcquireResult.AlreadyRunning)
         {
-            MessageBox.Show(
-                "MGA AfterDrive は既に起動しています。\nタスクトレイを確認してください。",
+            AppDialogs.Info(
+                null,
                 AppInfo.ProductName,
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Information);
+                "MGA AfterDrive は既に起動しています。\nタスクトレイを確認してください。");
             return;
         }
 
         if (acquire != SingleInstanceAcquireResult.Acquired || singleInstance is null)
         {
-            MessageBox.Show(
-                $"起動状態を確認できませんでした。{Environment.NewLine}{acquireError}",
+            AppDialogs.Error(
+                null,
                 AppInfo.ProductName,
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Error);
+                $"起動状態を確認できませんでした。{Environment.NewLine}{acquireError}");
             return;
         }
 
@@ -47,11 +46,10 @@ static class Program
             {
                 if (!SettingAppLauncher.TryStart(out var error))
                 {
-                    MessageBox.Show(
-                        $"設定がありません。設定アプリを起動できませんでした。{Environment.NewLine}{error}",
+                    AppDialogs.Error(
+                        null,
                         AppInfo.ProductName,
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Error);
+                        $"設定がありません。設定アプリを起動できませんでした。{Environment.NewLine}{error}");
                 }
 
                 return;

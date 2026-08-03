@@ -8,7 +8,7 @@ namespace MGA_AfterDrive;
 /// </summary>
 public static class AppInfo
 {
-    public const string ProductName = "MGA AfterDrive";
+    public const string ProductName = AppExecutableNames.HostProductName;
 
     public static string Version { get; } = AppVersion.From(Assembly.GetExecutingAssembly());
 

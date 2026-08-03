@@ -28,6 +28,8 @@ partial class MainForm
         maxWaitTextBox = new TextBox();
         maxWaitUnitLabel = new Label();
         startMinimizedCheckBox = new CheckBox();
+        taskSchedulerNoteLabel = new Label();
+        taskSchedulerButton = new AppButton();
         entryGrid = new DataGridView();
         delayColumn = new DataGridViewTextBoxColumn();
         fileNameColumn = new DataGridViewTextBoxColumn();
@@ -67,7 +69,7 @@ partial class MainForm
         rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, AppLayout.Spacing + AppLayout.ButtonHeight + AppLayout.Spacing));
         rootLayout.TabIndex = 0;
         //
-        // optionsBar（上段: 最大待機時間 / 下段: トレイ起動。外側 Padding は Spacing）
+        // optionsBar（上段: 最大待機時間 / 中段: トレイ起動 / 下段: タスク スケジューラ）
         //
         optionsBar.AutoSize = true;
         optionsBar.AutoSizeMode = AutoSizeMode.GrowAndShrink;
@@ -75,11 +77,15 @@ partial class MainForm
         optionsBar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
         optionsBar.Controls.Add(maxWaitRow, 0, 0);
         optionsBar.Controls.Add(startMinimizedCheckBox, 0, 1);
+        optionsBar.Controls.Add(taskSchedulerNoteLabel, 0, 2);
+        optionsBar.Controls.Add(taskSchedulerButton, 0, 3);
         optionsBar.Dock = DockStyle.Fill;
         optionsBar.Margin = Padding.Empty;
         optionsBar.Name = "optionsBar";
         optionsBar.Padding = new Padding(AppLayout.Spacing);
-        optionsBar.RowCount = 2;
+        optionsBar.RowCount = 4;
+        optionsBar.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        optionsBar.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         optionsBar.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         optionsBar.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         optionsBar.TabIndex = 0;
@@ -142,6 +148,29 @@ partial class MainForm
         startMinimizedCheckBox.Text = "タスクトレイに最小化して起動";
         startMinimizedCheckBox.UseVisualStyleBackColor = false;
         startMinimizedCheckBox.CheckedChanged += StartMinimizedCheckBox_CheckedChanged;
+        //
+        // taskSchedulerNoteLabel（登録後の EXE 移動禁止の注意）
+        //
+        taskSchedulerNoteLabel.AutoSize = true;
+        taskSchedulerNoteLabel.BackColor = Color.Transparent;
+        taskSchedulerNoteLabel.ForeColor = AppTheme.ForegroundMuted;
+        taskSchedulerNoteLabel.Margin = new Padding(0, AppLayout.Spacing, 0, 0);
+        taskSchedulerNoteLabel.MaximumSize = new Size(600, 0);
+        taskSchedulerNoteLabel.Name = "taskSchedulerNoteLabel";
+        taskSchedulerNoteLabel.TabIndex = 4;
+        taskSchedulerNoteLabel.Text =
+            "タスク スケジューラへ登録すると、いまの EXE の場所から起動されます。登録後は EXE を移動しないでください。";
+        //
+        // taskSchedulerButton（未登録: 登録 / 登録済: 削除）
+        //
+        taskSchedulerButton.Margin = new Padding(0, AppLayout.Spacing, 0, 0);
+        taskSchedulerButton.Name = "taskSchedulerButton";
+        taskSchedulerButton.Size = new Size(260, AppLayout.ButtonHeight);
+        taskSchedulerButton.TabIndex = 5;
+        taskSchedulerButton.Text = "タスク スケジューラに登録";
+        taskSchedulerButton.TextAlign = ContentAlignment.MiddleCenter;
+        taskSchedulerButton.UseVisualStyleBackColor = false;
+        taskSchedulerButton.Click += TaskSchedulerButton_Click;
         //
         // entryGrid
         //
@@ -343,6 +372,8 @@ partial class MainForm
     private TextBox maxWaitTextBox;
     private Label maxWaitUnitLabel;
     private CheckBox startMinimizedCheckBox;
+    private Label taskSchedulerNoteLabel;
+    private AppButton taskSchedulerButton;
     private DataGridView entryGrid;
     private DataGridViewTextBoxColumn delayColumn;
     private DataGridViewTextBoxColumn fileNameColumn;

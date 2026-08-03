@@ -26,6 +26,7 @@ partial class MainForm
         statusBar = new Panel();
         statusLayout = new TableLayoutPanel();
         licenseLink = new LinkLabel();
+        settingLink = new LinkLabel();
         statusLabel = new Label();
         trayIcon = new NotifyIcon(components);
         trayMenu = new ContextMenuStrip(components);
@@ -70,6 +71,25 @@ partial class MainForm
         licenseLink.VisitedLinkColor = AppTheme.Accent;
         licenseLink.LinkClicked += LicenseLink_LinkClicked;
         //
+        // settingLink（Licenses の右）
+        //
+        settingLink.ActiveLinkColor = AppTheme.Foreground;
+        settingLink.AutoSize = true;
+        settingLink.BackColor = Color.Transparent;
+        settingLink.DisabledLinkColor = AppTheme.ForegroundMuted;
+        settingLink.Dock = DockStyle.Fill;
+        settingLink.Font = AppFonts.UI;
+        settingLink.LinkBehavior = LinkBehavior.HoverUnderline;
+        settingLink.LinkColor = AppTheme.Accent;
+        settingLink.Margin = new Padding(AppLayout.Spacing, 0, 0, 0);
+        settingLink.Name = "settingLink";
+        settingLink.TabIndex = 1;
+        settingLink.TabStop = true;
+        settingLink.Text = "Setting";
+        settingLink.TextAlign = ContentAlignment.MiddleLeft;
+        settingLink.VisitedLinkColor = AppTheme.Accent;
+        settingLink.LinkClicked += SettingLink_LinkClicked;
+        //
         // statusLabel（カウントダウン等・右寄せ）
         //
         statusLabel.AutoSize = true;
@@ -79,17 +99,19 @@ partial class MainForm
         statusLabel.ForeColor = AppTheme.Foreground;
         statusLabel.Margin = new Padding(AppLayout.Spacing, 0, 0, 0);
         statusLabel.Name = "statusLabel";
-        statusLabel.TabIndex = 1;
+        statusLabel.TabIndex = 2;
         statusLabel.TextAlign = ContentAlignment.MiddleRight;
         //
         // statusLayout
         //
         statusLayout.BackColor = Color.Black;
-        statusLayout.ColumnCount = 2;
-        statusLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        statusLayout.ColumnCount = 3;
         statusLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        statusLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        statusLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
         statusLayout.Controls.Add(licenseLink, 0, 0);
-        statusLayout.Controls.Add(statusLabel, 1, 0);
+        statusLayout.Controls.Add(settingLink, 1, 0);
+        statusLayout.Controls.Add(statusLabel, 2, 0);
         statusLayout.Dock = DockStyle.Fill;
         statusLayout.Name = "statusLayout";
         statusLayout.Padding = new Padding(AppLayout.Spacing, 0, AppLayout.Spacing, 0);
@@ -158,6 +180,7 @@ partial class MainForm
     private Panel statusBar;
     private TableLayoutPanel statusLayout;
     private LinkLabel licenseLink;
+    private LinkLabel settingLink;
     private Label statusLabel;
     private NotifyIcon trayIcon;
     private ContextMenuStrip trayMenu;

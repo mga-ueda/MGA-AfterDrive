@@ -9,12 +9,6 @@ namespace MGA_AfterDrive.Setting.IO;
 /// </summary>
 public static class DelayEntryStore
 {
-    public static string GetStoreDirectory() => AppPaths.GetStoreDirectory();
-
-    public static string GetStoreFilePath() => AppPaths.GetDelayEntriesFilePath();
-
-    public static IReadOnlyList<DelayEntry> Load() => Load(out _, out _);
-
     /// <summary>
     /// エントリを読み込む。
     /// </summary>
@@ -24,7 +18,7 @@ public static class DelayEntryStore
     {
         missingRestartProperty = false;
         migratedDriveRestart = false;
-        var path = GetStoreFilePath();
+        var path = AppPaths.GetDelayEntriesFilePath();
         if (!File.Exists(path))
         {
             return Array.Empty<DelayEntry>();
@@ -43,17 +37,7 @@ public static class DelayEntryStore
         }
 
         missingRestartProperty = true;
-
-        // Restart 導入前の設定: Drive 配下だけ自動 ON（明示 false は存在しない）
-        foreach (var entry in entries)
-        {
-            if (!entry.Restart && GoogleDriveLocator.IsPathUnderGoogleDrive(entry.Path))
-            {
-                entry.Restart = true;
-                migratedDriveRestart = true;
-            }
-        }
-
+        migratedDriveRestart = DelayEntriesJson.TryMigrateDriveRestart(entries);
         return entries;
     }
 
@@ -61,7 +45,7 @@ public static class DelayEntryStore
     {
         ArgumentNullException.ThrowIfNull(entries);
 
-        var directory = GetStoreDirectory();
+        var directory = AppPaths.GetStoreDirectory();
         Directory.CreateDirectory(directory);
 
         var payload = entries
@@ -76,6 +60,6 @@ public static class DelayEntryStore
             .ToList();
 
         var json = JsonSerializer.Serialize(payload, AppJson.Indented);
-        File.WriteAllText(GetStoreFilePath(), json);
+        File.WriteAllText(AppPaths.GetDelayEntriesFilePath(), json);
     }
 }
