@@ -47,8 +47,6 @@ public static class AppTheme
 
     /// <summary>危険枠・クローズ等の赤。</summary>
     public static readonly Color Danger = Color.FromArgb(200, 55, 55);
-    /// <summary>危険ボタンのホバー（クローズ等）。</summary>
-    public static readonly Color DangerHover = Color.FromArgb(220, 70, 70);
     /// <summary>危険ボタンの塗り（暗い赤）。</summary>
     public static readonly Color DangerFill = Color.FromArgb(42, 16, 16);
     /// <summary>危険ボタンのホバー塗り。</summary>
