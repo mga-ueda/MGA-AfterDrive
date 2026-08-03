@@ -5,23 +5,25 @@ namespace MGA_AfterDrive.Controls;
 
 /// <summary>
 /// クライアント領域化したタイトルバー。
-/// ガラスキー（純黒）の上にアイコン・タイトル・閉じるボタンだけを描き、
-/// 閉じるボタン以外はヒットテストを透過して親フォームの
+/// ガラスキー（純黒）の上にアイコン・タイトル・トレイ格納ボタンだけを描き、
+/// 格納ボタン以外はヒットテストを透過して親フォームの
 /// HTCAPTION（ドラッグ移動）に委ねる。
+/// 終了はシステムトレイメニューのみ（このボタンは終了しない）。
 /// </summary>
 public sealed class GlassCaptionBar : Control
 {
     private const int WmNcHitTest = 0x0084;
     private const int HtTransparent = -1;
 
-    /// <summary>閉じるボタンの幅（96 DPI 基準）。Win11 標準に合わせる。</summary>
-    private const int CloseButtonLogicalWidth = 46;
+    /// <summary>キャプションボタンの幅（96 DPI 基準）。Win11 標準に合わせる。</summary>
+    private const int CaptionButtonLogicalWidth = 46;
 
     private Bitmap? _iconBitmap;
-    private bool _closeHover;
-    private bool _closePressed;
+    private bool _hideHover;
+    private bool _hidePressed;
 
-    public event EventHandler? CloseRequested;
+    /// <summary>トレイへ格納する要求（アプリ終了ではない）。</summary>
+    public event EventHandler? HideRequested;
 
     public GlassCaptionBar()
     {
@@ -38,11 +40,11 @@ public sealed class GlassCaptionBar : Control
         TabStop = false;
     }
 
-    private Rectangle CloseButtonBounds
+    private Rectangle HideButtonBounds
     {
         get
         {
-            var width = LogicalToDeviceUnits(CloseButtonLogicalWidth);
+            var width = LogicalToDeviceUnits(CaptionButtonLogicalWidth);
             return new Rectangle(Width - width, 0, width, Height);
         }
     }
@@ -60,7 +62,7 @@ public sealed class GlassCaptionBar : Control
 
     protected override void WndProc(ref Message m)
     {
-        // 閉じるボタン以外は親フォームへヒットテストを透過し、
+        // 格納ボタン以外は親フォームへヒットテストを透過し、
         // フォーム側で HTCAPTION / HTTOP を返してもらう
         if (m.Msg == WmNcHitTest)
         {
@@ -68,7 +70,7 @@ public sealed class GlassCaptionBar : Control
                 unchecked((short)(long)m.LParam),
                 unchecked((short)((long)m.LParam >> 16)));
 
-            if (!CloseButtonBounds.Contains(PointToClient(screenPoint)))
+            if (!HideButtonBounds.Contains(PointToClient(screenPoint)))
             {
                 m.Result = new IntPtr(HtTransparent);
                 return;
@@ -118,29 +120,29 @@ public sealed class GlassCaptionBar : Control
         }
 
         DrawTitle(g, x);
-        DrawCloseButton(g);
+        DrawHideButton(g);
     }
 
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
-        SetCloseHover(CloseButtonBounds.Contains(e.Location));
+        SetHideHover(HideButtonBounds.Contains(e.Location));
     }
 
     protected override void OnMouseLeave(EventArgs e)
     {
         base.OnMouseLeave(e);
-        SetCloseHover(false);
-        _closePressed = false;
+        SetHideHover(false);
+        _hidePressed = false;
     }
 
     protected override void OnMouseDown(MouseEventArgs e)
     {
         base.OnMouseDown(e);
-        if (e.Button == MouseButtons.Left && CloseButtonBounds.Contains(e.Location))
+        if (e.Button == MouseButtons.Left && HideButtonBounds.Contains(e.Location))
         {
-            _closePressed = true;
-            Invalidate(CloseButtonBounds);
+            _hidePressed = true;
+            Invalidate(HideButtonBounds);
         }
     }
 
@@ -148,13 +150,13 @@ public sealed class GlassCaptionBar : Control
     {
         base.OnMouseUp(e);
 
-        var wasPressed = _closePressed;
-        _closePressed = false;
-        Invalidate(CloseButtonBounds);
+        var wasPressed = _hidePressed;
+        _hidePressed = false;
+        Invalidate(HideButtonBounds);
 
-        if (wasPressed && e.Button == MouseButtons.Left && CloseButtonBounds.Contains(e.Location))
+        if (wasPressed && e.Button == MouseButtons.Left && HideButtonBounds.Contains(e.Location))
         {
-            CloseRequested?.Invoke(this, EventArgs.Empty);
+            HideRequested?.Invoke(this, EventArgs.Empty);
         }
     }
 
@@ -163,7 +165,7 @@ public sealed class GlassCaptionBar : Control
         var bounds = new RectangleF(
             left,
             0,
-            Math.Max(1, CloseButtonBounds.Left - left - LogicalToDeviceUnits(AppLayout.Spacing)),
+            Math.Max(1, HideButtonBounds.Left - left - LogicalToDeviceUnits(AppLayout.Spacing)),
             Height);
 
         using var brush = new SolidBrush(ForeColor);
@@ -178,40 +180,40 @@ public sealed class GlassCaptionBar : Control
         g.DrawString(Text, Font, brush, bounds, format);
     }
 
-    private void DrawCloseButton(Graphics g)
+    private void DrawHideButton(Graphics g)
     {
-        var bounds = CloseButtonBounds;
+        var bounds = HideButtonBounds;
 
-        if (_closePressed)
+        // 終了ではないため赤ホバーは使わず、Win11 最小化相当の薄いハイライトにする
+        if (_hidePressed)
         {
-            using var pressed = new SolidBrush(AppTheme.DangerHover);
+            using var pressed = new SolidBrush(AppTheme.Border);
             g.FillRectangle(pressed, bounds);
         }
-        else if (_closeHover)
+        else if (_hideHover)
         {
-            using var hover = new SolidBrush(AppTheme.Danger);
+            using var hover = new SolidBrush(AppTheme.SurfaceHover);
             g.FillRectangle(hover, bounds);
         }
 
+        // Win11 最小化グリフ: 中央の短い横棒
+        var barWidth = LogicalToDeviceUnits(10);
+        var barHeight = Math.Max(1, LogicalToDeviceUnits(1));
+        var barX = bounds.X + ((bounds.Width - barWidth) / 2);
+        var barY = bounds.Y + ((bounds.Height - barHeight) / 2);
         using var brush = new SolidBrush(ForeColor);
-        using var format = new StringFormat(StringFormat.GenericTypographic)
-        {
-            Alignment = StringAlignment.Center,
-            LineAlignment = StringAlignment.Center,
-        };
-
-        g.DrawString("\u2715", Font, brush, bounds, format);
+        g.FillRectangle(brush, barX, barY, barWidth, barHeight);
     }
 
-    private void SetCloseHover(bool value)
+    private void SetHideHover(bool value)
     {
-        if (_closeHover == value)
+        if (_hideHover == value)
         {
             return;
         }
 
-        _closeHover = value;
-        Invalidate(CloseButtonBounds);
+        _hideHover = value;
+        Invalidate(HideButtonBounds);
     }
 
     private void RebuildIconBitmap()

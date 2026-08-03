@@ -50,7 +50,7 @@ partial class MainForm
         captionBar.Height = AppLayout.CaptionBarHeight;
         captionBar.Name = "captionBar";
         captionBar.TabIndex = 2;
-        captionBar.CloseRequested += CaptionBar_CloseRequested;
+        captionBar.HideRequested += CaptionBar_HideRequested;
         //
         // licenseLink
         //

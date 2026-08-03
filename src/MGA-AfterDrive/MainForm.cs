@@ -136,9 +136,9 @@ public partial class MainForm : AppForm
         captionBar.Text = Text;
     }
 
-    private void CaptionBar_CloseRequested(object? sender, EventArgs e)
+    private void CaptionBar_HideRequested(object? sender, EventArgs e)
     {
-        // _allowExit が立っていない限り OnFormClosing がトレイ格納に振り替える
+        // キャプションは最小化見た目。終了ではなくトレイ格納（Close → OnFormClosing）。
         Close();
     }
 
@@ -386,10 +386,94 @@ public partial class MainForm : AppForm
         e.Graphics.DrawLine(pen, 0, 0, statusBar.ClientSize.Width, 0);
     }
 
-    private async Task RunStartupSequenceAsync()
+    private async Task ApplyUpdateCheckResultAsync(Task<AppUpdateCheckResult> updateCheckTask)
     {
         try
         {
+            var result = await updateCheckTask.ConfigureAwait(true);
+            ReportUpdateCheckResult(result);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"[ERROR] バージョン確認で未処理の例外: {ex.GetType().Name}: {ex.Message}");
+        }
+    }
+
+    private void ReportUpdateCheckResult(AppUpdateCheckResult result)
+    {
+        if (!result.Succeeded)
+        {
+            AppendLog($"バージョン確認に失敗しました（現行 {result.CurrentVersion}）: {result.ErrorDetail}");
+            return;
+        }
+
+        if (!result.UpdateAvailable)
+        {
+            AppendLog($"バージョンは最新です（{result.CurrentVersion}）。");
+            return;
+        }
+
+        AppendLog($"新しいバージョンが公開されています: {result.LatestVersion}（現行 {result.CurrentVersion}）。");
+
+        var message =
+            $"新しいバージョン {result.LatestVersion} が公開されています。{Environment.NewLine}"
+            + $"現在のバージョン: {result.CurrentVersion}{Environment.NewLine}{Environment.NewLine}"
+            + "GitHub のリリースページを開きますか？"
+            + $"{Environment.NewLine}（自動更新はありません。ダウンロードと差し替えはご自身で行ってください。）";
+
+        // トレイ格納・透明度 0 のときは owner なし（背面に隠れるのを防ぐ）
+        var openPage = AppDialogs.AskYesNo(
+            GetDialogOwner(),
+            AppInfo.ProductName,
+            message,
+            MessageBoxIcon.Information);
+
+        if (!openPage || string.IsNullOrWhiteSpace(result.ReleaseUrl))
+        {
+            return;
+        }
+
+        if (AppUpdateChecker.TryOpenUrl(result.ReleaseUrl, out var openError))
+        {
+            AppendLog($"リリースページを開きました: {result.ReleaseUrl}");
+        }
+        else
+        {
+            AppendLog($"[ERROR] リリースページを開けませんでした: {openError}");
+        }
+    }
+
+    /// <summary>
+    /// MessageBox の owner。非表示・透明時は null（トップレベル表示）。
+    /// </summary>
+    private IWin32Window? GetDialogOwner()
+    {
+        if (IsDisposed || !IsHandleCreated || !Visible || Opacity < 1.0)
+        {
+            return null;
+        }
+
+        if (WindowState == FormWindowState.Minimized)
+        {
+            return null;
+        }
+
+        return this;
+    }
+
+    private async Task RunStartupSequenceAsync()
+    {
+        Task<AppUpdateCheckResult>? updateCheckTask = null;
+        try
+        {
+            // Drive 確認・遅延起動を止めないよう、ネットワーク確認は並行で進める
+            AppendLog("バージョンを確認しています…");
+            updateCheckTask = AppUpdateChecker.CheckAsync(AppInfo.Version, _lifetimeCts.Token);
+
             var driveOk = await GoogleDriveStartupProbe
                 .RunAsync(AppendLog, SetStatusText, _lifetimeCts.Token)
                 .ConfigureAwait(true);
@@ -397,6 +481,8 @@ public partial class MainForm : AppForm
             if (!driveOk)
             {
                 AppendLog("Google Drive の確認に失敗したため、遅延起動をスキップします。");
+                await ApplyUpdateCheckResultAsync(updateCheckTask).ConfigureAwait(true);
+                updateCheckTask = null;
                 return;
             }
 
@@ -408,6 +494,8 @@ public partial class MainForm : AppForm
             {
                 AppendLog("起動エントリがありません。起動するものはありません。");
                 Interlocked.Exchange(ref _initialLaunchCompleted, 1);
+                await ApplyUpdateCheckResultAsync(updateCheckTask).ConfigureAwait(true);
+                updateCheckTask = null;
                 HideToTray();
                 return;
             }
@@ -422,6 +510,10 @@ public partial class MainForm : AppForm
 
             Interlocked.Exchange(ref _initialLaunchCompleted, 1);
             Interlocked.Exchange(ref _needsFullRelaunch, 0);
+
+            // 起動完了後に結果を表示（モーダルでも登録アプリ起動は既に終わっている）
+            await ApplyUpdateCheckResultAsync(updateCheckTask).ConfigureAwait(true);
+            updateCheckTask = null;
 
             AppendLog("起動シーケンスが完了しました。2 秒後にトレイへ格納します…");
             await PauseAwareCountdown.WaitAsync(
@@ -450,6 +542,21 @@ public partial class MainForm : AppForm
         }
         finally
         {
+            if (updateCheckTask is not null)
+            {
+                try
+                {
+                    await ApplyUpdateCheckResultAsync(updateCheckTask).ConfigureAwait(true);
+                }
+                catch (OperationCanceledException)
+                {
+                }
+                catch (Exception ex)
+                {
+                    AppendLog($"[ERROR] バージョン確認で未処理の例外: {ex.GetType().Name}: {ex.Message}");
+                }
+            }
+
             if (!OperationPause.IsLicenseViewActive)
             {
                 SetStatusText(null);

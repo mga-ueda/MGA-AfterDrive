@@ -29,4 +29,24 @@ public static class AppDialogs
             defaultButton);
         return result == DialogResult.Yes;
     }
+
+    /// <summary>
+    /// Yes/No の確認。既定は No。情報・質問など Warning 以外の用途向け。
+    /// </summary>
+    public static bool AskYesNo(
+        IWin32Window? owner,
+        string caption,
+        string text,
+        MessageBoxIcon icon = MessageBoxIcon.Question,
+        MessageBoxDefaultButton defaultButton = MessageBoxDefaultButton.Button2)
+    {
+        var result = MessageBox.Show(
+            owner,
+            text,
+            caption,
+            MessageBoxButtons.YesNo,
+            icon,
+            defaultButton);
+        return result == DialogResult.Yes;
+    }
 }
