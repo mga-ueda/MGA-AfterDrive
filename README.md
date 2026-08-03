@@ -11,6 +11,20 @@ Google Drive for desktop の準備完了を待ってから起動できるほか�
 
 現在のバージョン: **1.0.2**
 
+## スクリーンショット
+
+### メイン画面
+
+Google Drive の準備完了を待ったあと、登録アプリを順次起動する様子です。
+
+![MGA AfterDrive メイン画面](assets/screenshot-main.png)
+
+### Setting
+
+起動エントリの Delay / Path / Restart や、最大待機時間・タスク スケジューラ登録を編集します。
+
+![MGA AfterDrive Setting](assets/screenshot-setting.png)
+
 ## 特色
 
 ### ログオン時の遅延起動
