@@ -165,7 +165,7 @@ partial class MainForm
         MinimumSize = new Size(560, 214);
         Name = "MainForm";
         StartPosition = FormStartPosition.Manual;
-        Text = "MGA AfterDrive - Version 1.0.1";
+        Text = "MGA AfterDrive - Version 1.0.2";
         statusBar.ResumeLayout(false);
         statusLayout.ResumeLayout(false);
         statusLayout.PerformLayout();
