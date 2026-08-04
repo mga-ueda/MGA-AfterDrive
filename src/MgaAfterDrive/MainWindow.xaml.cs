@@ -45,6 +45,7 @@ public partial class MainWindow : AppWindow
         LogList.ItemsSource = _logLines;
         LogList.FontFamily = AppFonts.LogFamily;
         LogList.FontSize = AppFonts.LogSize;
+        LogList.FontWeight = FontWeights.Light;
         LicenseLink.FontFamily = AppFonts.UIFamily;
         LicenseLink.FontSize = AppFonts.UISize;
         SettingLink.FontFamily = AppFonts.UIFamily;
@@ -166,6 +167,12 @@ public partial class MainWindow : AppWindow
 
             _trayMenu?.Dispose();
             _trayMenu = null;
+            if (_trayMenuOwner is not null)
+            {
+                _trayMenuOwner.DestroyHandle();
+                _trayMenuOwner = null;
+            }
+
             _trayIconHandle?.Dispose();
             _trayIconHandle = null;
 
@@ -229,8 +236,7 @@ public partial class MainWindow : AppWindow
             {
                 Owner = null,
                 ShowInTaskbar = true,
-                WindowStartupLocation = WindowStartupLocation.CenterScreen,
-                Opacity = 1,
+                WindowStartupLocation = WindowStartupLocation.Manual,
                 Topmost = true,
             };
             setting.Closed += (_, _) =>
@@ -242,8 +248,8 @@ public partial class MainWindow : AppWindow
             };
 
             _settingWindow = setting;
+            // Reveal は SettingWindow 側がリスト準備後に行う（ここで Activate するとチラつく）
             setting.Show();
-            BringSettingToFront(setting);
         }
         catch (Exception ex)
         {
@@ -268,7 +274,6 @@ public partial class MainWindow : AppWindow
             window.WindowState = WindowState.Normal;
         }
 
-        window.Opacity = 1;
         window.ShowInTaskbar = true;
         window.Activate();
         window.Topmost = true;

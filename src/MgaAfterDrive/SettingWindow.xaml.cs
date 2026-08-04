@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Windows;
+using System.Windows.Threading;
 using MgaAfterDrive.Dialogs;
 using MgaAfterDrive.IO;
 using MgaAfterDrive.Windows;
@@ -26,34 +27,64 @@ public partial class SettingWindow : AppWindow
     {
         InitializeComponent();
         OperationPause.SetSettingOpen(true);
-        // AppWindow の遅延表示を使わない（Acrylic 用）。確実に可視化する。
-        Opacity = 1;
         ShowInTaskbar = true;
         Title = $"{AppInfo.ProductName} Setting - Version {AppInfo.Version}";
+        // Show 前から画面外へ（Loaded 前の一瞬の左上表示を防ぐ）
+        Left = OffScreenCoordinate;
+        Top = OffScreenCoordinate;
         EntryGrid.ItemsSource = _entries;
         _entries.CollectionChanged += Entries_CollectionChanged;
         Loaded += SettingWindow_Loaded;
-        ContentRendered += (_, _) =>
-        {
-            Opacity = 1;
-            Activate();
-        };
     }
 
     protected override bool PersistWindowBounds => false;
 
     /// <summary>
-    /// Setting は Acrylic ではないため、Opacity=0 の遅延表示を使わない。
+    /// リスト行の生成が終わってから可視化する（ズラズラ表示を防ぐ）。
     /// </summary>
-    protected override bool UseDeferredReveal => false;
+    protected override bool RevealOnContentRendered => false;
+
+    /// <summary>
+    /// フィットと中央寄せが終わるまで画面外に置き、途中の Activate を避ける。
+    /// </summary>
+    protected override bool DeferInitialPlacement => true;
+
+    /// <summary>
+    /// Setting は Acrylic ではない。LAYERED 解除は消えて再表示のように見える。
+    /// </summary>
+    protected override bool ClearLayeredStyleOnReveal => false;
+
+    private const double OffScreenCoordinate = -32000;
 
     private void SettingWindow_Loaded(object sender, RoutedEventArgs e)
     {
+        Left = OffScreenCoordinate;
+        Top = OffScreenCoordinate;
+
         LoadSettingsAndEntries();
         RefreshTaskSchedulerButtonState();
         UpdateActionButtonAppearances();
         FitWindowToContent();
+        AdjustFileNameColumnWidth();
+
+        EntryGrid.UpdateLayout();
+        Dispatcher.BeginInvoke(RevealAfterGridReady, DispatcherPriority.ContextIdle);
+    }
+
+    private void RevealAfterGridReady()
+    {
+        if (IsRevealed)
+        {
+            return;
+        }
+
+        FitWindowToContent();
+        AdjustFileNameColumnWidth();
+        EntryGrid.UpdateLayout();
         CenterOnPrimaryDisplay();
+        RevealNow();
+        Activate();
+        _ = Focus();
     }
 
     private void SettingWindow_Closing(object? sender, CancelEventArgs e)
@@ -105,6 +136,10 @@ public partial class SettingWindow : AppWindow
 
         UpdateActionButtonAppearances();
         FitWindowToContent();
+        if (!_isLoading)
+        {
+            AdjustFileNameColumnWidth();
+        }
     }
 
     private void Entry_PropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -112,6 +147,10 @@ public partial class SettingWindow : AppWindow
         if (!_isLoading)
         {
             SetDirty(true);
+            if (e.PropertyName is nameof(DelayEntry.FileName) or nameof(DelayEntry.Path))
+            {
+                AdjustFileNameColumnWidth();
+            }
         }
 
         UpdateActionButtonAppearances();

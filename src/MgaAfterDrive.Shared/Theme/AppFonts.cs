@@ -19,7 +19,8 @@ public static class AppFonts
         "Consolas");
 
     public const double UISize = 12;
-    public const double LogSize = 11;
+    /// <summary>ログ用。UI より一段小さくして主張を抑える。</summary>
+    public const double LogSize = 10.5;
 
     private static FontFamily Resolve(params string[] familyNames)
     {

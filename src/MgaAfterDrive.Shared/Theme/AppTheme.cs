@@ -25,10 +25,10 @@ public static class AppTheme
     public static readonly Color ForegroundMuted = Color.FromRgb(180, 180, 180);
 
     /// <summary>
-    /// ログ文字色。通常の前景よりわずかに暗くして眩しさを抑える。
+    /// ログ文字色。UI 前景より抑えめにして主張を弱める。
     /// </summary>
-    public static readonly Color LogForeground = Color.FromRgb(212, 212, 212);
-    public static readonly Color Accent = Color.FromRgb(0, 122, 204);
+    public static readonly Color LogForeground = Color.FromRgb(168, 168, 168);
+    public static readonly Color Accent = Color.FromRgb(26, 138, 212);
     /// <summary>アクセント枠用の明るい青。</summary>
     public static readonly Color AccentBorder = Color.FromRgb(40, 140, 220);
     /// <summary>アクセントボタンの塗り（暗い青）。</summary>

@@ -24,7 +24,7 @@
     </Grid.RowDefinitions>
 
     <!-- Options -->
-    <StackPanel Grid.Row="0" Margin="0,0,0,10">
+    <StackPanel x:Name="OptionsPanel" Grid.Row="0" Margin="0,0,0,10">
       <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
         <TextBlock x:Name="MaxWaitLabel"
                    VerticalAlignment="Center"
@@ -51,19 +51,26 @@
                 Checked="StartMinimizedCheckBox_Changed"
                 Unchecked="StartMinimizedCheckBox_Changed" />
 
-      <TextBlock x:Name="TaskSchedulerNoteLabel"
-                 Margin="0,10,0,0"
-                 Foreground="{StaticResource ForegroundMutedBrush}"
-                 TextWrapping="Wrap"
-                 Text="タスク スケジューラへ登録すると、いまの EXE の場所から起動されます。登録後は EXE を移動しないでください。" />
-
-      <Button x:Name="TaskSchedulerButton"
-              Margin="0,10,0,0"
-              HorizontalAlignment="Left"
-              MinWidth="220"
-              Style="{StaticResource AccentButton}"
-              Content="タスク スケジューラに登録"
-              Click="TaskSchedulerButton_Click" />
+      <Grid Margin="0,10,0,0">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Button x:Name="TaskSchedulerButton"
+                Grid.Column="0"
+                MinWidth="220"
+                VerticalAlignment="Center"
+                Style="{StaticResource AccentButton}"
+                Content="タスク スケジューラに登録"
+                Click="TaskSchedulerButton_Click" />
+        <TextBlock x:Name="TaskSchedulerNoteLabel"
+                   Grid.Column="1"
+                   Margin="10,0,0,0"
+                   VerticalAlignment="Center"
+                   Foreground="{StaticResource ForegroundMutedBrush}"
+                   TextWrapping="Wrap"
+                   Text="タスク スケジューラへ登録すると、いまの EXE の場所から起動されます。登録後は EXE を移動しないでください。" />
+      </Grid>
     </StackPanel>
 
     <!-- Entries grid -->
@@ -71,7 +78,12 @@
               Grid.Row="1"
               AllowDrop="True"
               CanUserSortColumns="True"
-              EnableRowVirtualization="True"
+              EnableRowVirtualization="False"
+              EnableColumnVirtualization="False"
+              SelectionMode="Single"
+              SelectionUnit="FullRow"
+              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+              ScrollViewer.VerticalScrollBarVisibility="Auto"
               Drop="Window_Drop"
               DragOver="Window_DragOver"
               Sorting="EntryGrid_Sorting"
@@ -87,23 +99,53 @@
             <Style TargetType="TextBlock">
               <Setter Property="HorizontalAlignment" Value="Center" />
               <Setter Property="VerticalAlignment" Value="Center" />
+              <Setter Property="TextAlignment" Value="Center" />
+            </Style>
+          </DataGridTextColumn.ElementStyle>
+          <DataGridTextColumn.EditingElementStyle>
+            <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+              <Setter Property="HorizontalContentAlignment" Value="Center" />
+              <Setter Property="VerticalContentAlignment" Value="Center" />
+              <Setter Property="TextAlignment" Value="Center" />
+            </Style>
+          </DataGridTextColumn.EditingElementStyle>
+        </DataGridTextColumn>
+        <DataGridTextColumn x:Name="FileNameColumn"
+                            Header="File Name"
+                            Binding="{Binding FileName, UpdateSourceTrigger=PropertyChanged}"
+                            Width="SizeToCells"
+                            MinWidth="80"
+                            IsReadOnly="True"
+                            SortMemberPath="FileName">
+          <DataGridTextColumn.ElementStyle>
+            <Style TargetType="TextBlock">
+              <Setter Property="VerticalAlignment" Value="Center" />
             </Style>
           </DataGridTextColumn.ElementStyle>
         </DataGridTextColumn>
-        <DataGridTextColumn Header="File Name"
-                            Binding="{Binding FileName, UpdateSourceTrigger=PropertyChanged}"
-                            Width="120"
-                            IsReadOnly="True"
-                            SortMemberPath="FileName" />
         <DataGridTextColumn Header="Path"
                             Binding="{Binding Path, UpdateSourceTrigger=PropertyChanged}"
                             Width="*"
                             MinWidth="160"
-                            SortMemberPath="Path" />
+                            SortMemberPath="Path">
+          <DataGridTextColumn.ElementStyle>
+            <Style TargetType="TextBlock">
+              <Setter Property="VerticalAlignment" Value="Center" />
+              <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+            </Style>
+          </DataGridTextColumn.ElementStyle>
+        </DataGridTextColumn>
         <DataGridTextColumn Header="Option"
                             Binding="{Binding Option, UpdateSourceTrigger=PropertyChanged}"
                             Width="100"
-                            SortMemberPath="Option" />
+                            SortMemberPath="Option">
+          <DataGridTextColumn.ElementStyle>
+            <Style TargetType="TextBlock">
+              <Setter Property="VerticalAlignment" Value="Center" />
+              <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+            </Style>
+          </DataGridTextColumn.ElementStyle>
+        </DataGridTextColumn>
         <DataGridCheckBoxColumn Width="80"
                                SortMemberPath="Restart"
                                Binding="{Binding Restart, UpdateSourceTrigger=PropertyChanged}">
@@ -111,6 +153,18 @@
             <TextBlock Text="Restart"
                        ToolTip="Google Drive が一時ダウンした時に、アプリを強制終了させ、復旧した時にアプリを起動し直すかどうか" />
           </DataGridCheckBoxColumn.Header>
+          <DataGridCheckBoxColumn.ElementStyle>
+            <Style TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
+              <Setter Property="HorizontalAlignment" Value="Center" />
+              <Setter Property="VerticalAlignment" Value="Center" />
+            </Style>
+          </DataGridCheckBoxColumn.ElementStyle>
+          <DataGridCheckBoxColumn.EditingElementStyle>
+            <Style TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
+              <Setter Property="HorizontalAlignment" Value="Center" />
+              <Setter Property="VerticalAlignment" Value="Center" />
+            </Style>
+          </DataGridCheckBoxColumn.EditingElementStyle>
         </DataGridCheckBoxColumn>
       </DataGrid.Columns>
       <DataGrid.ContextMenu>
@@ -122,7 +176,8 @@
     </DataGrid>
 
     <!-- Buttons -->
-    <StackPanel Grid.Row="2"
+    <StackPanel x:Name="ButtonBar"
+                Grid.Row="2"
                 Margin="0,10,0,0"
                 HorizontalAlignment="Right"
                 Orientation="Horizontal">

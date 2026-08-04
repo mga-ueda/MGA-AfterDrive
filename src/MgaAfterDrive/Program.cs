@@ -51,10 +51,16 @@ static class Program
             app.DispatcherUnhandledException += (_, e) =>
             {
                 e.Handled = true;
+                var detail = e.Exception.Message;
+                for (var inner = e.Exception.InnerException; inner is not null; inner = inner.InnerException)
+                {
+                    detail += $"{Environment.NewLine}→ {inner.Message}";
+                }
+
                 AppDialogs.Error(
                     null,
                     AppInfo.ProductName,
-                    $"予期しないエラーが発生しました。{Environment.NewLine}{e.Exception.Message}");
+                    $"予期しないエラーが発生しました。{Environment.NewLine}{detail}");
             };
 
             if (settingsOnly)
@@ -94,9 +100,8 @@ static class Program
     private static SettingWindow CreateSettingWindow()
         => new()
         {
-            Opacity = 1,
             ShowInTaskbar = true,
-            WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen,
+            WindowStartupLocation = System.Windows.WindowStartupLocation.Manual,
             Topmost = true,
         };
 }

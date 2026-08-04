@@ -22,8 +22,10 @@ public class AppWindow : Window
         FontSize = AppFonts.UISize;
         Topmost = true;
         ShowInTaskbar = true;
-        // Acrylic メイン窓はチラつき防止のため 0 から Reveal。通常窓は最初から表示。
+        // 描画完了前のフラッシュを防ぐため、既定は 0 から Reveal。
         Opacity = UseDeferredReveal ? 0 : 1;
+        UseLayoutRounding = true;
+        SnapsToDevicePixels = true;
         Icon = AppIcons.DefaultImage;
     }
 
@@ -38,10 +40,24 @@ public class AppWindow : Window
     protected virtual bool PersistWindowBounds => true;
 
     /// <summary>
-    /// true のとき Opacity=0 で開始し、描画後に可視化する（Acrylic チラつき対策）。
-    /// Setting など通常ウィンドウは false。
+    /// true のとき Opacity=0 で開始し、描画後に可視化する（未レイアウト表示のチラつき対策）。
     /// </summary>
     protected virtual bool UseDeferredReveal => true;
+
+    /// <summary>
+    /// false のとき ContentRendered では可視化せず、サブクラスが <see cref="RevealNow"/> を呼ぶ。
+    /// </summary>
+    protected virtual bool RevealOnContentRendered => true;
+
+    /// <summary>
+    /// true のとき Loaded / ContentRendered では中央寄せしない（Reveal 直前に配置する）。
+    /// </summary>
+    protected virtual bool DeferInitialPlacement => false;
+
+    /// <summary>
+    /// true のとき可視化後に WS_EX_LAYERED を外す（Acrylic 用）。通常窓ではチラつくので false。
+    /// </summary>
+    protected virtual bool ClearLayeredStyleOnReveal => true;
 
     /// <summary>
     /// false のとき初回表示で Opacity を上げず、サブクラスがトレイ格納などへ進める。
@@ -75,7 +91,7 @@ public class AppWindow : Window
         }
 
         // トレイ起動など非表示のまま進める場合は中央寄せしない（画面内に出すとフラッシュの原因になる）
-        if (!_boundsRestored && ShouldRevealOnShown)
+        if (!_boundsRestored && ShouldRevealOnShown && !DeferInitialPlacement)
         {
             CenterOnPrimaryDisplay();
         }
@@ -87,9 +103,15 @@ public class AppWindow : Window
 
         if (ShouldRevealOnShown)
         {
-            if (!PersistWindowBounds || !_boundsRestored)
+            if (!DeferInitialPlacement && (!PersistWindowBounds || !_boundsRestored))
             {
                 CenterOnPrimaryDisplay();
+            }
+
+            // 遅延 Reveal の窓は、準備完了前に Activate すると一瞬チラつくことがある
+            if (!RevealOnContentRendered)
+            {
+                return;
             }
 
             Activate();
@@ -195,14 +217,38 @@ public class AppWindow : Window
             return;
         }
 
-        Dispatcher.BeginInvoke(() =>
+        Dispatcher.BeginInvoke(RevealNowCore);
+    }
+
+    /// <summary>
+    /// サブクラスから、準備完了後に可視化する。
+    /// </summary>
+    protected void RevealNow()
+    {
+        if (_revealed)
         {
-            Opacity = 1;
+            return;
+        }
+
+        RevealNowCore();
+    }
+
+    private void RevealNowCore()
+    {
+        if (_revealed)
+        {
+            return;
+        }
+
+        Opacity = 1;
+        if (ClearLayeredStyleOnReveal)
+        {
             // Opacity 変更で付く WS_EX_LAYERED を外さないと DWM Acrylic が黒/グレーになる
             AcrylicBackdrop.ClearLayeredStyle(new WindowInteropHelper(this).Handle);
-            _revealed = true;
-            OnRevealed();
-        });
+        }
+
+        _revealed = true;
+        OnRevealed();
     }
 
     /// <summary>

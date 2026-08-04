@@ -1,6 +1,7 @@
 using System.Windows;
 using MediaBrushes = System.Windows.Media.Brushes;
 using MgaAfterDrive.IO;
+using MgaAfterDrive.Native;
 using MgaAfterDrive.Theme;
 using MgaAfterDrive.Windows;
 using Drawing = System.Drawing;
@@ -10,10 +11,15 @@ namespace MgaAfterDrive;
 
 public partial class MainWindow
 {
+    private WinForms.NativeWindow? _trayMenuOwner;
+
     private void InitializeTrayIcon()
     {
-        _trayMenu = new WinForms.ContextMenuStrip();
-        ApplyTrayMenuTheme(_trayMenu);
+        var trayMenu = new TrayContextMenuStrip();
+        ApplyTrayMenuTheme(trayMenu);
+        trayMenu.OnSettingShortcut = () => Dispatcher.BeginInvoke(OpenSetting);
+        trayMenu.OnExitShortcut = () => Dispatcher.BeginInvoke(ExitApp);
+        _trayMenu = trayMenu;
 
         _settingMenuItem = new WinForms.ToolStripMenuItem("Setting (&S)");
         // WinForms メニューのモーダルループ中に直接 Show すると不可視のまま残ることがある
@@ -35,9 +41,66 @@ public partial class MainWindow
             Text = AppInfo.ProductName,
             Icon = _trayIconHandle,
             Visible = true,
-            ContextMenuStrip = _trayMenu,
+            // ContextMenuStrip を直接付けない（自動表示だとキーボードが届かない）
         };
         _trayIcon.MouseClick += TrayIcon_MouseClick;
+        _trayIcon.MouseUp += TrayIcon_MouseUp;
+    }
+
+    private void TrayIcon_MouseUp(object? sender, WinForms.MouseEventArgs e)
+    {
+        if (e.Button != WinForms.MouseButtons.Right)
+        {
+            return;
+        }
+
+        // NotifyIcon のコールバックからでも確実に UI スレッドで表示する
+        Dispatcher.BeginInvoke(ShowTrayContextMenu);
+    }
+
+    private void ShowTrayContextMenu()
+    {
+        if (_trayMenu is null)
+        {
+            return;
+        }
+
+        EnsureTrayMenuOwner();
+        if (_trayMenuOwner is not null)
+        {
+            // explorer 由来のクリックでもメニューがキー入力を受け取れるようにする
+            ForegroundWindow.Activate(_trayMenuOwner.Handle);
+        }
+
+        _trayMenu.Show(WinForms.Control.MousePosition);
+        _ = _trayMenu.Handle;
+        ForegroundWindow.Activate(_trayMenu.Handle);
+
+        if (_trayMenu.Items.Count > 0)
+        {
+            _trayMenu.Items[0].Select();
+        }
+    }
+
+    private void EnsureTrayMenuOwner()
+    {
+        if (_trayMenuOwner is not null)
+        {
+            return;
+        }
+
+        var owner = new WinForms.NativeWindow();
+        owner.CreateHandle(new WinForms.CreateParams
+        {
+            Caption = "MgaAfterDrive.TrayMenuOwner",
+            // WS_POPUP — 非表示のオーナーとしてだけ使う
+            Style = unchecked((int)0x80000000),
+            X = -2000,
+            Y = -2000,
+            Width = 1,
+            Height = 1,
+        });
+        _trayMenuOwner = owner;
     }
 
     private static void ApplyTrayMenuTheme(WinForms.ContextMenuStrip menu)
@@ -82,6 +145,12 @@ public partial class MainWindow
         _trayMenu.Items.Insert(insertAt, separator);
         _trayMenu.Items.Insert(insertAt + 1, disconnectItem);
         _trayMenu.Items.Insert(insertAt + 2, restoreItem);
+
+        if (_trayMenu is TrayContextMenuStrip trayMenu)
+        {
+            trayMenu.OnDisconnectShortcut = () => disconnectItem.PerformClick();
+            trayMenu.OnRestoreShortcut = () => restoreItem.PerformClick();
+        }
     }
 #endif
 
@@ -176,6 +245,51 @@ public partial class MainWindow
 
         Close();
         System.Windows.Application.Current?.Shutdown();
+    }
+
+    /// <summary>
+    /// NotifyIcon 向け。ニーモニックが届かない環境でも S/X を ProcessCmdKey で拾う。
+    /// </summary>
+    private sealed class TrayContextMenuStrip : WinForms.ContextMenuStrip
+    {
+        public Action? OnSettingShortcut { get; set; }
+        public Action? OnExitShortcut { get; set; }
+#if DEBUG
+        public Action? OnDisconnectShortcut { get; set; }
+        public Action? OnRestoreShortcut { get; set; }
+#endif
+
+        protected override bool ProcessCmdKey(ref WinForms.Message msg, WinForms.Keys keyData)
+        {
+            var key = keyData & WinForms.Keys.KeyCode;
+            var mods = keyData & WinForms.Keys.Modifiers;
+            if (mods == WinForms.Keys.None)
+            {
+                switch (key)
+                {
+                    case WinForms.Keys.S:
+                        Close();
+                        OnSettingShortcut?.Invoke();
+                        return true;
+                    case WinForms.Keys.X:
+                        Close();
+                        OnExitShortcut?.Invoke();
+                        return true;
+#if DEBUG
+                    case WinForms.Keys.D:
+                        Close();
+                        OnDisconnectShortcut?.Invoke();
+                        return true;
+                    case WinForms.Keys.R:
+                        Close();
+                        OnRestoreShortcut?.Invoke();
+                        return true;
+#endif
+                }
+            }
+
+            return base.ProcessCmdKey(ref msg, keyData);
+        }
     }
 
     private sealed class DarkTrayRenderer : WinForms.ToolStripProfessionalRenderer

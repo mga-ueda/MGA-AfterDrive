@@ -33,7 +33,7 @@ public static class GoogleDriveStartupProbe
                 return false;
             }
 
-            log($"ドライブ文字を解決しました: {mountPath}（{detail}）");
+            log($"ドライブ文字を解決しました: {mountPath}");
 
             bool processRunning;
             try
