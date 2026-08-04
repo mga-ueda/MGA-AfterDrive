@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>MgaAfterDrive</RootNamespace>
+    <AssemblyName>MGA AfterDrive</AssemblyName>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <StartupObject>MgaAfterDrive.Program</StartupObject>
+    <Product>MGA AfterDrive</Product>
+    <AssemblyTitle>MGA AfterDrive</AssemblyTitle>
+    <ApplicationIcon>..\..\assets\app.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MgaAfterDrive.Shared\MgaAfterDrive.Shared.csproj" />
+  </ItemGroup>
+
+  <!-- UseWPF + UseWindowsForms で落ちる SDK 暗黙 using を補う -->
+  <ItemGroup>
+    <Using Include="System.IO" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\licenses\WinBlur-LICENSE.txt" LogicalName="MgaAfterDrive.Licenses.WinBlur-LICENSE.txt" />
+    <EmbeddedResource Include="..\..\THIRD_PARTY_NOTICES.md" LogicalName="MgaAfterDrive.Licenses.THIRD_PARTY_NOTICES.md" />
+    <Content Include="..\..\licenses\WinBlur-LICENSE.txt" Link="licenses\WinBlur-LICENSE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" />
+    <Content Include="..\..\THIRD_PARTY_NOTICES.md" Link="THIRD_PARTY_NOTICES.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" />
+  </ItemGroup>
+
+  <!-- 単一ファイル公開フォルダに余分なファイルが残らないようにする -->
+  <Target Name="CleanupSingleFilePublishDir" AfterTargets="Publish" Condition="'$(PublishSingleFile)' == 'true'">
+    <ItemGroup>
+      <_PublishExtras Include="$(PublishDir)**\*" Exclude="$(PublishDir)MGA AfterDrive.exe" />
+    </ItemGroup>
+    <Delete Files="@(_PublishExtras)" TreatErrorsAsWarnings="true" />
+    <RemoveDir Directories="$(PublishDir)licenses" Condition="Exists('$(PublishDir)licenses')" />
+  </Target>
+
+</Project>

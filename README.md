@@ -6,8 +6,7 @@ Google Drive for desktop の準備完了を待ってから起動できるほか�
 
 | 名称 | 説明 |
 |------|------|
-| **MGA AfterDrive** | メインアプリ（監視・遅延起動・トレイ常駐） |
-| **MGA AfterDrive Setting** | 起動エントリと共通設定の編集、タスク スケジューラ登録 |
+| **MGA AfterDrive** | メインアプリ（監視・遅延起動・トレイ常駐）と Setting ウィンドウ（同一プロセス） |
 
 現在のバージョン: **1.0.3**
 
@@ -35,7 +34,7 @@ Setting の「タスク スケジューラに登録」で、ログオン時起�
 
 ### 本アプリ自体の配置
 
-**本アプリ（`MGA-AfterDrive.exe`）はローカルディスク上に置いて起動してください。** Google Drive 上からの起動は想定していません。登録するアプリを Drive 上に置くのは問題ありませんが、AfterDrive 本体はローカルに置いたままにしてください。
+**本アプリ（`MGA AfterDrive.exe`）はローカルディスク上に置いて起動してください。** Google Drive 上からの起動は想定していません。登録するアプリを Drive 上に置くのは問題ありませんが、AfterDrive 本体はローカルに置いたままにしてください。
 
 ### 登録するアプリの選び方
 
@@ -66,7 +65,7 @@ Setting には、スタートアップ項目をすべて移す必要はありま
 - タスクトレイ常駐、起動時のトレイ格納オプション、二重起動防止
 - Setting からのタスク スケジューラ登録／削除（ログオン時起動）
 - 起動時に GitHub の最新リリースを確認し、新しいバージョンがあればログ表示とダイアログで通知（自動更新なし。必要ならリリースページを開く）
-- ダークテーマ UI（DPI 対応）
+- ダークテーマ UI（WPF / Per-Monitor DPI 対応、Acrylic メイン画面）
 
 ## 動作環境
 
@@ -76,7 +75,7 @@ Setting には、スタートアップ項目をすべて移す必要はありま
 
 ## 使い方
 
-1. `MGA-AfterDrive.exe` を起動します。初回（設定未作成時）は Setting が開きます。
+1. `MGA AfterDrive.exe` を起動します。初回（設定未作成時）は Setting ウィンドウが開きます。
 2. Setting で「タスク スケジューラに登録」を実行し、ログオン時に本アプリが起動するようにします。
 3. Setting に実行ファイル（`.exe` / `.bat` / `.cmd` / `.com`）をドラッグ＆ドロップで追加します。
 4. 各行の **Delay**（秒）や起動引数（**Option**）を編集し、**Save** します。
@@ -84,7 +83,7 @@ Setting には、スタートアップ項目をすべて移す必要はありま
 
 **Restart** にチェックを入れると、Google Drive 切断時に強制終了し、復帰後に再起動します。パスが Google Drive マウント配下のときは自動でオンになります（手動のオンオフも可能です）。
 
-トレイアイコンから Setting を開き直せます。
+トレイアイコンまたはメイン画面の Setting リンクから Setting を開き直せます。設定だけ開きたいときは `MGA AfterDrive.exe --settings` でも起動できます。
 
 ## 設定の保存場所
 
@@ -92,26 +91,23 @@ Setting には、スタートアップ項目をすべて移す必要はありま
 %LocalAppData%\MGA\MGA AfterDrive\
   delay-entries.json   … 起動エントリ
   settings.json        … 最大待機時間・トレイ起動など
-  app\                 … 公開版で展開される Setting（自動）
 ```
 
 ## 開発ビルド
 
 ```powershell
-dotnet build src\MGA-AfterDrive\MGA-AfterDrive.csproj -c Debug
+dotnet build src\MgaAfterDrive\MgaAfterDrive.csproj -c Debug
 ```
 
 出力先の例:
 
 ```
-src\MGA-AfterDrive\bin\Debug\net8.0-windows\
+src\MgaAfterDrive\bin\Debug\net8.0-windows\
 ```
-
-メイン EXE と同じフォルダに Setting もコピーされます。
 
 ## リリース（単一 EXE）
 
-配布物は **`MGA-AfterDrive.exe` のみ**です。Setting は EXE 内に埋め込まれ、初回起動時に `%LocalAppData%\MGA\MGA AfterDrive\app\` へ展開されます。
+配布物は **`MGA AfterDrive.exe` のみ**です（Setting も同一 EXE 内のウィンドウです）。リポジトリ名は [MGA-AfterDrive](https://github.com/mga-ueda/MGA-AfterDrive) です。
 
 ```powershell
 .\publish.ps1
@@ -120,12 +116,12 @@ src\MGA-AfterDrive\bin\Debug\net8.0-windows\
 または:
 
 ```powershell
-dotnet publish src\MGA-AfterDrive\MGA-AfterDrive.csproj `
+dotnet publish src\MgaAfterDrive\MgaAfterDrive.csproj `
   -c Release -r win-x64 --self-contained false `
   -p:PublishSingleFile=true -o publish
 ```
 
-出力: `publish\MGA-AfterDrive.exe`
+出力: `publish\MGA AfterDrive.exe`
 
 完全オフライン配布にする場合は `--self-contained true` を付けてください（ファイルサイズが増えます）。
 

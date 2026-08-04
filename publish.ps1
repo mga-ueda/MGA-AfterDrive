@@ -7,7 +7,7 @@ $ErrorActionPreference = "Stop"
 
 $root = $PSScriptRoot
 $out = Join-Path $root "publish"
-$project = Join-Path $root "src\MGA-AfterDrive\MGA-AfterDrive.csproj"
+$project = Join-Path $root "src\MgaAfterDrive\MgaAfterDrive.csproj"
 
 if (Test-Path $out) {
     Remove-Item $out -Recurse -Force
@@ -28,4 +28,4 @@ Write-Host ""
 Write-Host "Published (single file):"
 Get-ChildItem $out -File | ForEach-Object { "  $($_.Name)  ($([math]::Round($_.Length / 1KB, 1)) KB)" }
 Write-Host ""
-Write-Host "Distribute: $out\MGA-AfterDrive.exe"
+Write-Host "Distribute: $out\MGA AfterDrive.exe"

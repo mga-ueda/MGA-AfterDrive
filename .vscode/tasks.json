@@ -4,7 +4,7 @@
     {
       "label": "build-run",
       "type": "shell",
-      "command": "dotnet build \"${workspaceFolder}\\src\\MGA-AfterDrive\\MGA-AfterDrive.csproj\" -v q",
+      "command": "dotnet build \"${workspaceFolder}\\src\\MgaAfterDrive\\MgaAfterDrive.csproj\" -v q",
       "options": {
         "shell": {
           "executable": "cmd.exe",
@@ -25,29 +25,9 @@
       "problemMatcher": []
     },
     {
-      "label": "build-setting",
-      "type": "shell",
-      "command": "dotnet build \"${workspaceFolder}\\src\\MGA-AfterDrive.Setting\\MGA-AfterDrive.Setting.csproj\" -v q",
-      "options": {
-        "shell": {
-          "executable": "cmd.exe",
-          "args": ["/d", "/c"]
-        }
-      },
-      "group": "build",
-      "presentation": {
-        "reveal": "silent",
-        "panel": "shared",
-        "showReuseMessage": false,
-        "clear": true,
-        "close": true
-      },
-      "problemMatcher": []
-    },
-    {
       "label": "run-main",
       "type": "shell",
-      "command": "dotnet build \"${workspaceFolder}\\src\\MGA-AfterDrive\\MGA-AfterDrive.csproj\" -v q && start \"\" \"${workspaceFolder}\\src\\MGA-AfterDrive\\bin\\Debug\\net8.0-windows\\MGA-AfterDrive.exe\"",
+      "command": "dotnet build \"${workspaceFolder}\\src\\MgaAfterDrive\\MgaAfterDrive.csproj\" -v q && start \"\" \"${workspaceFolder}\\src\\MgaAfterDrive\\bin\\Debug\\net8.0-windows\\MGA AfterDrive.exe\"",
       "options": {
         "shell": {
           "executable": "cmd.exe",
@@ -68,7 +48,7 @@
     {
       "label": "run-setting",
       "type": "shell",
-      "command": "dotnet build \"${workspaceFolder}\\src\\MGA-AfterDrive.Setting\\MGA-AfterDrive.Setting.csproj\" -v q && start \"\" \"${workspaceFolder}\\src\\MGA-AfterDrive.Setting\\bin\\Debug\\net8.0-windows\\MGA-AfterDrive.Setting.exe\"",
+      "command": "dotnet build \"${workspaceFolder}\\src\\MgaAfterDrive\\MgaAfterDrive.csproj\" -v q && start \"\" \"${workspaceFolder}\\src\\MgaAfterDrive\\bin\\Debug\\net8.0-windows\\MGA AfterDrive.exe\" --settings",
       "options": {
         "shell": {
           "executable": "cmd.exe",

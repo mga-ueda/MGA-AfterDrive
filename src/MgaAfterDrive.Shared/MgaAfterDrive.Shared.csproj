@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>MgaAfterDrive</RootNamespace>
+    <AssemblyName>MgaAfterDrive.Shared</AssemblyName>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\app.ico" />
+  </ItemGroup>
+
+  <!-- UseWindowsForms 撤去で落ちた SDK 暗黙 using を補う -->
+  <ItemGroup>
+    <Using Include="System.IO" />
+    <Using Include="System.Net.Http" />
+  </ItemGroup>
+
+</Project>
