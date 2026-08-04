@@ -107,7 +107,7 @@ src\MgaAfterDrive\bin\Debug\net8.0-windows\
 
 ## リリース（単一 EXE）
 
-配布物は **`MGA AfterDrive.exe` のみ**です（Setting も同一 EXE 内のウィンドウです）。リポジトリ名は [MGA-AfterDrive](https://github.com/mga-ueda/MGA-AfterDrive) です。
+正式な配布ファイル名は **`MGA AfterDrive.exe`** です（Setting も同一 EXE 内のウィンドウです）。リポジトリ名は [MGA-AfterDrive](https://github.com/mga-ueda/MGA-AfterDrive) です。
 
 ```powershell
 .\publish.ps1
@@ -122,6 +122,8 @@ dotnet publish src\MgaAfterDrive\MgaAfterDrive.csproj `
 ```
 
 出力: `publish\MGA AfterDrive.exe`
+
+GitHub Releases へ公開するときは、資産名のスペースが置換されるため EXE を直接アップロードせず、中身が `MGA AfterDrive.exe` の ZIP（例: `MGA-AfterDrive-1.0.4.zip`）をアップロードします。
 
 完全オフライン配布にする場合は `--self-contained true` を付けてください（ファイルサイズが増えます）。
 
