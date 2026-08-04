@@ -30,10 +30,10 @@ public partial class SettingWindow : AppWindow
         ShowInTaskbar = true;
         Title = $"{AppInfo.ProductName} Setting - Version {AppInfo.Version}";
         // Show 前から画面外へ（Loaded 前の一瞬の左上表示を防ぐ）
-        Left = OffScreenCoordinate;
-        Top = OffScreenCoordinate;
+        ParkOffScreen();
         EntryGrid.ItemsSource = _entries;
         _entries.CollectionChanged += Entries_CollectionChanged;
+        CancelButton.Style = FindStyle("AccentButton");
         Loaded += SettingWindow_Loaded;
     }
 
@@ -41,25 +41,18 @@ public partial class SettingWindow : AppWindow
 
     /// <summary>
     /// リスト行の生成が終わってから可視化する（ズラズラ表示を防ぐ）。
+    /// Loaded / ContentRendered の自動中央寄せもスキップする。
     /// </summary>
     protected override bool RevealOnContentRendered => false;
-
-    /// <summary>
-    /// フィットと中央寄せが終わるまで画面外に置き、途中の Activate を避ける。
-    /// </summary>
-    protected override bool DeferInitialPlacement => true;
 
     /// <summary>
     /// Setting は Acrylic ではない。LAYERED 解除は消えて再表示のように見える。
     /// </summary>
     protected override bool ClearLayeredStyleOnReveal => false;
 
-    private const double OffScreenCoordinate = -32000;
-
     private void SettingWindow_Loaded(object sender, RoutedEventArgs e)
     {
-        Left = OffScreenCoordinate;
-        Top = OffScreenCoordinate;
+        ParkOffScreen();
 
         LoadSettingsAndEntries();
         RefreshTaskSchedulerButtonState();
@@ -133,8 +126,11 @@ public partial class SettingWindow : AppWindow
         {
             SetDirty(true);
         }
+        else if (!_isLoading)
+        {
+            UpdateActionButtonAppearances();
+        }
 
-        UpdateActionButtonAppearances();
         FitWindowToContent();
         if (!_isLoading)
         {
@@ -152,8 +148,6 @@ public partial class SettingWindow : AppWindow
                 AdjustFileNameColumnWidth();
             }
         }
-
-        UpdateActionButtonAppearances();
     }
 
     private void SetDirty(bool isDirty)
@@ -176,7 +170,6 @@ public partial class SettingWindow : AppWindow
         SaveButton.IsEnabled = _isDirty;
         SaveButton.Style = FindStyle(_isDirty ? "DangerButton" : "DisabledButton");
 
-        CancelButton.Style = FindStyle("AccentButton");
         UpdateTaskSchedulerButtonAppearance();
     }
 

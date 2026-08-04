@@ -15,9 +15,6 @@ namespace MgaAfterDrive;
 
 public partial class MainWindow : AppWindow
 {
-    private const double OffScreenCoordinate = -32000;
-    private const double OffScreenParkThreshold = -10000;
-
     private readonly CancellationTokenSource _lifetimeCts = new();
     private readonly SemaphoreSlim _recoveryGate = new(1, 1);
     private readonly ObservableCollection<string> _logLines = [];
@@ -57,8 +54,7 @@ public partial class MainWindow : AppWindow
         _startMinimizedToTray = AppSettingsStore.Load().StartMinimizedToTray;
         if (_startMinimizedToTray)
         {
-            Left = OffScreenCoordinate;
-            Top = OffScreenCoordinate;
+            ParkOffScreen();
         }
 
         InitializeTrayIcon();

@@ -12,6 +12,16 @@ namespace MgaAfterDrive.Windows;
 /// </summary>
 public class AppWindow : Window
 {
+    /// <summary>
+    /// 未レイアウト表示のフラッシュを避けるための画面外座標。
+    /// </summary>
+    protected const double OffScreenCoordinate = -32000;
+
+    /// <summary>
+    /// 画面外に退避しているとみなす閾値（Main のトレイ復帰判定用）。
+    /// </summary>
+    protected const double OffScreenParkThreshold = -10000;
+
     private bool _revealed;
     private bool _boundsRestored;
 
@@ -22,7 +32,7 @@ public class AppWindow : Window
         FontSize = AppFonts.UISize;
         Topmost = true;
         ShowInTaskbar = true;
-        // 描画完了前のフラッシュを防ぐため、既定は 0 から Reveal。
+        // 現状オーバーライドなし（常に true）。描画前フラッシュ防止のため 0 から Reveal。
         Opacity = UseDeferredReveal ? 0 : 1;
         UseLayoutRounding = true;
         SnapsToDevicePixels = true;
@@ -41,18 +51,15 @@ public class AppWindow : Window
 
     /// <summary>
     /// true のとき Opacity=0 で開始し、描画後に可視化する（未レイアウト表示のチラつき対策）。
+    /// 現状サブクラスはオーバーライドしていない。
     /// </summary>
     protected virtual bool UseDeferredReveal => true;
 
     /// <summary>
     /// false のとき ContentRendered では可視化せず、サブクラスが <see cref="RevealNow"/> を呼ぶ。
+    /// あわせて Loaded / ContentRendered の自動中央寄せもスキップする。
     /// </summary>
     protected virtual bool RevealOnContentRendered => true;
-
-    /// <summary>
-    /// true のとき Loaded / ContentRendered では中央寄せしない（Reveal 直前に配置する）。
-    /// </summary>
-    protected virtual bool DeferInitialPlacement => false;
 
     /// <summary>
     /// true のとき可視化後に WS_EX_LAYERED を外す（Acrylic 用）。通常窓ではチラつくので false。
@@ -90,8 +97,8 @@ public class AppWindow : Window
             _boundsRestored = WindowBoundsStore.TryRestore(this, WindowBoundsKey);
         }
 
-        // トレイ起動など非表示のまま進める場合は中央寄せしない（画面内に出すとフラッシュの原因になる）
-        if (!_boundsRestored && ShouldRevealOnShown && !DeferInitialPlacement)
+        // トレイ起動・手動 Reveal 窓は中央寄せしない（画面内に出すとフラッシュの原因になる）
+        if (!_boundsRestored && ShouldRevealOnShown && RevealOnContentRendered)
         {
             CenterOnPrimaryDisplay();
         }
@@ -103,15 +110,15 @@ public class AppWindow : Window
 
         if (ShouldRevealOnShown)
         {
-            if (!DeferInitialPlacement && (!PersistWindowBounds || !_boundsRestored))
-            {
-                CenterOnPrimaryDisplay();
-            }
-
-            // 遅延 Reveal の窓は、準備完了前に Activate すると一瞬チラつくことがある
+            // 遅延 Reveal の窓は、準備完了前に Activate / 中央寄せすると一瞬チラつくことがある
             if (!RevealOnContentRendered)
             {
                 return;
+            }
+
+            if (!PersistWindowBounds || !_boundsRestored)
+            {
+                CenterOnPrimaryDisplay();
             }
 
             Activate();
@@ -150,6 +157,15 @@ public class AppWindow : Window
     protected void MarkRevealed()
     {
         _revealed = true;
+    }
+
+    /// <summary>
+    /// ウィンドウを画面外へ退避する（トレイ復帰時など）。
+    /// </summary>
+    protected void ParkOffScreen()
+    {
+        Left = OffScreenCoordinate;
+        Top = OffScreenCoordinate;
     }
 
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)

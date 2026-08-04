@@ -177,17 +177,19 @@
     </Setter>
   </Style>
 
-  <!-- ボタン（枠 2px + UseLayoutRounding でちらつき抑制） -->
+  <!-- ボタン（枠 2px + UseLayoutRounding でちらつき抑制）
+       Tag にホバー時 Background を渡す（Accent/Warning/Danger で差し替え） -->
   <Style x:Key="AppButton" TargetType="Button">
     <Setter Property="Foreground" Value="{StaticResource ForegroundBrush}" />
     <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
     <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
     <Setter Property="BorderThickness" Value="2" />
     <Setter Property="Padding" Value="12,4" />
-    <Setter Property="Height" Value="32" />
+    <Setter Property="Height" Value="{x:Static theme:AppLayout.ButtonHeight}" />
     <Setter Property="Cursor" Value="Hand" />
     <Setter Property="SnapsToDevicePixels" Value="True" />
     <Setter Property="UseLayoutRounding" Value="True" />
+    <Setter Property="Tag" Value="{StaticResource SurfaceHoverBrush}" />
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="Button">
@@ -205,12 +207,10 @@
           </Border>
           <ControlTemplate.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
-              <Setter TargetName="Bd" Property="Background" Value="{StaticResource SurfaceHoverBrush}" />
+              <Setter TargetName="Bd" Property="Background" Value="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}" />
             </Trigger>
             <Trigger Property="IsEnabled" Value="False">
               <Setter Property="Foreground" Value="{StaticResource ForegroundMutedBrush}" />
-              <Setter TargetName="Bd" Property="Background" Value="{StaticResource SurfaceBrush}" />
-              <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource BorderBrush}" />
               <Setter TargetName="Bd" Property="Opacity" Value="0.55" />
             </Trigger>
           </ControlTemplate.Triggers>
@@ -222,91 +222,19 @@
   <Style x:Key="AccentButton" TargetType="Button" BasedOn="{StaticResource AppButton}">
     <Setter Property="Background" Value="{StaticResource AccentFillBrush}" />
     <Setter Property="BorderBrush" Value="{StaticResource AccentBorderBrush}" />
-    <Setter Property="Template">
-      <Setter.Value>
-        <ControlTemplate TargetType="Button">
-          <Border x:Name="Bd"
-                  Background="{TemplateBinding Background}"
-                  BorderBrush="{TemplateBinding BorderBrush}"
-                  BorderThickness="{TemplateBinding BorderThickness}"
-                  CornerRadius="6"
-                  Padding="{TemplateBinding Padding}"
-                  SnapsToDevicePixels="True"
-                  UseLayoutRounding="True">
-            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True" />
-          </Border>
-          <ControlTemplate.Triggers>
-            <Trigger Property="IsMouseOver" Value="True">
-              <Setter TargetName="Bd" Property="Background" Value="{StaticResource AccentFillHoverBrush}" />
-            </Trigger>
-            <Trigger Property="IsEnabled" Value="False">
-              <Setter Property="Foreground" Value="{StaticResource ForegroundMutedBrush}" />
-              <Setter TargetName="Bd" Property="Opacity" Value="0.55" />
-            </Trigger>
-          </ControlTemplate.Triggers>
-        </ControlTemplate>
-      </Setter.Value>
-    </Setter>
+    <Setter Property="Tag" Value="{StaticResource AccentFillHoverBrush}" />
   </Style>
 
   <Style x:Key="WarningButton" TargetType="Button" BasedOn="{StaticResource AppButton}">
     <Setter Property="Background" Value="{StaticResource WarningFillBrush}" />
     <Setter Property="BorderBrush" Value="{StaticResource WarningBorderBrush}" />
-    <Setter Property="Template">
-      <Setter.Value>
-        <ControlTemplate TargetType="Button">
-          <Border x:Name="Bd"
-                  Background="{TemplateBinding Background}"
-                  BorderBrush="{TemplateBinding BorderBrush}"
-                  BorderThickness="{TemplateBinding BorderThickness}"
-                  CornerRadius="6"
-                  Padding="{TemplateBinding Padding}"
-                  SnapsToDevicePixels="True"
-                  UseLayoutRounding="True">
-            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True" />
-          </Border>
-          <ControlTemplate.Triggers>
-            <Trigger Property="IsMouseOver" Value="True">
-              <Setter TargetName="Bd" Property="Background" Value="{StaticResource WarningFillHoverBrush}" />
-            </Trigger>
-            <Trigger Property="IsEnabled" Value="False">
-              <Setter Property="Foreground" Value="{StaticResource ForegroundMutedBrush}" />
-              <Setter TargetName="Bd" Property="Opacity" Value="0.55" />
-            </Trigger>
-          </ControlTemplate.Triggers>
-        </ControlTemplate>
-      </Setter.Value>
-    </Setter>
+    <Setter Property="Tag" Value="{StaticResource WarningFillHoverBrush}" />
   </Style>
 
   <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource AppButton}">
     <Setter Property="Background" Value="{StaticResource DangerFillBrush}" />
     <Setter Property="BorderBrush" Value="{StaticResource DangerBrush}" />
-    <Setter Property="Template">
-      <Setter.Value>
-        <ControlTemplate TargetType="Button">
-          <Border x:Name="Bd"
-                  Background="{TemplateBinding Background}"
-                  BorderBrush="{TemplateBinding BorderBrush}"
-                  BorderThickness="{TemplateBinding BorderThickness}"
-                  CornerRadius="6"
-                  Padding="{TemplateBinding Padding}"
-                  SnapsToDevicePixels="True"
-                  UseLayoutRounding="True">
-            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True" />
-          </Border>
-          <ControlTemplate.Triggers>
-            <Trigger Property="IsMouseOver" Value="True">
-              <Setter TargetName="Bd" Property="Background" Value="{StaticResource DangerFillHoverBrush}" />
-            </Trigger>
-            <Trigger Property="IsEnabled" Value="False">
-              <Setter Property="Foreground" Value="{StaticResource ForegroundMutedBrush}" />
-              <Setter TargetName="Bd" Property="Opacity" Value="0.55" />
-            </Trigger>
-          </ControlTemplate.Triggers>
-        </ControlTemplate>
-      </Setter.Value>
-    </Setter>
+    <Setter Property="Tag" Value="{StaticResource DangerFillHoverBrush}" />
   </Style>
 
   <Style x:Key="DisabledButton" TargetType="Button" BasedOn="{StaticResource AppButton}">

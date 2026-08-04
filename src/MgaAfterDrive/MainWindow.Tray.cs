@@ -11,14 +11,15 @@ namespace MgaAfterDrive;
 
 public partial class MainWindow
 {
+    private const int TrayMenuOwnerStylePopup = unchecked((int)0x80000000);
+    private const int TrayMenuOwnerOffset = -2000;
+
     private WinForms.NativeWindow? _trayMenuOwner;
 
     private void InitializeTrayIcon()
     {
         var trayMenu = new TrayContextMenuStrip();
         ApplyTrayMenuTheme(trayMenu);
-        trayMenu.OnSettingShortcut = () => Dispatcher.BeginInvoke(OpenSetting);
-        trayMenu.OnExitShortcut = () => Dispatcher.BeginInvoke(ExitApp);
         _trayMenu = trayMenu;
 
         _settingMenuItem = new WinForms.ToolStripMenuItem("Setting (&S)");
@@ -26,8 +27,11 @@ public partial class MainWindow
         _settingMenuItem.Click += (_, _) => Dispatcher.BeginInvoke(OpenSetting);
         var exitMenuItem = new WinForms.ToolStripMenuItem("Exit (&X)");
         exitMenuItem.Click += (_, _) => Dispatcher.BeginInvoke(ExitApp);
-        _trayMenu.Items.Add(_settingMenuItem);
-        _trayMenu.Items.Add(exitMenuItem);
+
+        trayMenu.SettingItem = _settingMenuItem;
+        trayMenu.ExitItem = exitMenuItem;
+        trayMenu.Items.Add(_settingMenuItem);
+        trayMenu.Items.Add(exitMenuItem);
 
         // Icon(Stream) はストリーム生存に依存するため、Clone してから Stream を閉じる
         using (var iconStream = AppIcons.OpenIconStream())
@@ -94,9 +98,9 @@ public partial class MainWindow
         {
             Caption = "MgaAfterDrive.TrayMenuOwner",
             // WS_POPUP — 非表示のオーナーとしてだけ使う
-            Style = unchecked((int)0x80000000),
-            X = -2000,
-            Y = -2000,
+            Style = TrayMenuOwnerStylePopup,
+            X = TrayMenuOwnerOffset,
+            Y = TrayMenuOwnerOffset,
             Width = 1,
             Height = 1,
         });
@@ -148,8 +152,8 @@ public partial class MainWindow
 
         if (_trayMenu is TrayContextMenuStrip trayMenu)
         {
-            trayMenu.OnDisconnectShortcut = () => disconnectItem.PerformClick();
-            trayMenu.OnRestoreShortcut = () => restoreItem.PerformClick();
+            trayMenu.DisconnectItem = disconnectItem;
+            trayMenu.RestoreItem = restoreItem;
         }
     }
 #endif
@@ -193,8 +197,7 @@ public partial class MainWindow
         var targetLeft = Left;
         var targetTop = Top;
         Opacity = 0;
-        Left = OffScreenCoordinate;
-        Top = OffScreenCoordinate;
+        ParkOffScreen();
         Background = MediaBrushes.Transparent;
         LogList.Background = MediaBrushes.Transparent;
 
@@ -245,76 +248,5 @@ public partial class MainWindow
 
         Close();
         System.Windows.Application.Current?.Shutdown();
-    }
-
-    /// <summary>
-    /// NotifyIcon 向け。ニーモニックが届かない環境でも S/X を ProcessCmdKey で拾う。
-    /// </summary>
-    private sealed class TrayContextMenuStrip : WinForms.ContextMenuStrip
-    {
-        public Action? OnSettingShortcut { get; set; }
-        public Action? OnExitShortcut { get; set; }
-#if DEBUG
-        public Action? OnDisconnectShortcut { get; set; }
-        public Action? OnRestoreShortcut { get; set; }
-#endif
-
-        protected override bool ProcessCmdKey(ref WinForms.Message msg, WinForms.Keys keyData)
-        {
-            var key = keyData & WinForms.Keys.KeyCode;
-            var mods = keyData & WinForms.Keys.Modifiers;
-            if (mods == WinForms.Keys.None)
-            {
-                switch (key)
-                {
-                    case WinForms.Keys.S:
-                        Close();
-                        OnSettingShortcut?.Invoke();
-                        return true;
-                    case WinForms.Keys.X:
-                        Close();
-                        OnExitShortcut?.Invoke();
-                        return true;
-#if DEBUG
-                    case WinForms.Keys.D:
-                        Close();
-                        OnDisconnectShortcut?.Invoke();
-                        return true;
-                    case WinForms.Keys.R:
-                        Close();
-                        OnRestoreShortcut?.Invoke();
-                        return true;
-#endif
-                }
-            }
-
-            return base.ProcessCmdKey(ref msg, keyData);
-        }
-    }
-
-    private sealed class DarkTrayRenderer : WinForms.ToolStripProfessionalRenderer
-    {
-        public DarkTrayRenderer()
-            : base(new DarkTrayColorTable())
-        {
-        }
-
-        protected override void OnRenderToolStripBorder(WinForms.ToolStripRenderEventArgs e)
-        {
-        }
-    }
-
-    private sealed class DarkTrayColorTable : WinForms.ProfessionalColorTable
-    {
-        public override Drawing.Color MenuItemSelected => ToDrawing(AppTheme.Selection);
-        public override Drawing.Color MenuItemSelectedGradientBegin => ToDrawing(AppTheme.Selection);
-        public override Drawing.Color MenuItemSelectedGradientEnd => ToDrawing(AppTheme.Selection);
-        public override Drawing.Color MenuItemBorder => ToDrawing(AppTheme.Border);
-        public override Drawing.Color ToolStripDropDownBackground => ToDrawing(AppTheme.Surface);
-        public override Drawing.Color ImageMarginGradientBegin => ToDrawing(AppTheme.Surface);
-        public override Drawing.Color ImageMarginGradientMiddle => ToDrawing(AppTheme.Surface);
-        public override Drawing.Color ImageMarginGradientEnd => ToDrawing(AppTheme.Surface);
-        public override Drawing.Color SeparatorDark => ToDrawing(AppTheme.Border);
-        public override Drawing.Color SeparatorLight => ToDrawing(AppTheme.Border);
     }
 }

@@ -12,8 +12,9 @@ public static class AppLayout
 
     /// <summary>
     /// 標準ボタンの高さ。
+    /// XAML の Height は double 必須。
     /// </summary>
-    public const int ButtonHeight = 32;
+    public const double ButtonHeight = 32;
 
     /// <summary>
     /// ボタン枠の角丸半径。
