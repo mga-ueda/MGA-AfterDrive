@@ -5,6 +5,7 @@ namespace MgaAfterDrive.Theme;
 /// <summary>
 /// アプリケーション共通のダークテーマ色定義。
 /// UI の色指定は原則このクラスの定数のみを使用する。
+/// XAML 側は Themes/AppStyles.xaml と値を揃えること。
 /// </summary>
 public static class AppTheme
 {

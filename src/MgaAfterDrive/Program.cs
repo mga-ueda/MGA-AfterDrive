@@ -1,4 +1,4 @@
-using MgaAfterDrive.Forms;
+using MgaAfterDrive.Dialogs;
 using MgaAfterDrive.IO;
 
 namespace MgaAfterDrive;
@@ -68,11 +68,11 @@ static class Program
             if (!DelayEntriesPresence.HasAny())
             {
                 var settingWindow = CreateSettingWindow();
+                // SettingWindow が OperationPause を管理する。
                 // Run 前の ShowDialog は環境によって描画されないことがあるため、
                 // 一度 Run して閉じたあとエントリ有無で続行する。
                 settingWindow.Closed += (_, _) =>
                 {
-                    OperationPause.SetSettingOpen(false);
                     if (!DelayEntriesPresence.HasAny())
                     {
                         app.Shutdown();
@@ -83,7 +83,6 @@ static class Program
                     app.MainWindow = mainWindow;
                     mainWindow.Show();
                 };
-                OperationPause.SetSettingOpen(true);
                 app.Run(settingWindow);
                 return;
             }

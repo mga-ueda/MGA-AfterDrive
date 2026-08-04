@@ -3,7 +3,7 @@ using System.Text.Json;
 namespace MgaAfterDrive.IO;
 
 /// <summary>
-/// 遅延実行リストの保存・読込。
+/// 遅延実行リストの保存・読込（Setting 向け・失敗は例外）。
 /// </summary>
 public static class DelayEntryStore
 {
@@ -16,26 +16,19 @@ public static class DelayEntryStore
     {
         missingRestartProperty = false;
         migratedDriveRestart = false;
-        var path = AppPaths.GetDelayEntriesFilePath();
-        if (!File.Exists(path))
-        {
-            return Array.Empty<DelayEntry>();
-        }
 
-        var json = File.ReadAllText(path);
-        if (string.IsNullOrWhiteSpace(json))
+        var json = DelayEntriesFile.ReadTextOrEmpty();
+        if (json is null)
         {
             return Array.Empty<DelayEntry>();
         }
 
         var entries = JsonSerializer.Deserialize<List<DelayEntry>>(json, AppJson.Indented) ?? [];
-        if (DelayEntriesJson.HasRestartProperty(json))
-        {
-            return entries;
-        }
-
-        missingRestartProperty = true;
-        migratedDriveRestart = DelayEntriesJson.TryMigrateDriveRestart(entries);
+        DelayEntriesFile.ApplyRestartMigrationIfNeeded(
+            json,
+            entries,
+            out missingRestartProperty,
+            out migratedDriveRestart);
         return entries;
     }
 

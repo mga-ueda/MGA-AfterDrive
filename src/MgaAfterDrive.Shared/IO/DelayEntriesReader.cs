@@ -3,39 +3,25 @@ using System.Text.Json;
 namespace MgaAfterDrive.IO;
 
 /// <summary>
-/// delay-entries.json の読み取り。
+/// delay-entries.json の読み取り（ホスト起動用・失敗時は空）。
 /// </summary>
 public static class DelayEntriesReader
 {
     public static IReadOnlyList<DelayEntryRecord> Load()
     {
-        var path = AppPaths.GetDelayEntriesFilePath();
-        if (!File.Exists(path))
+        var json = DelayEntriesFile.TryReadText();
+        if (json is null)
         {
             return Array.Empty<DelayEntryRecord>();
         }
 
         try
         {
-            var json = File.ReadAllText(path);
-            if (string.IsNullOrWhiteSpace(json))
-            {
-                return Array.Empty<DelayEntryRecord>();
-            }
-
             var entries = JsonSerializer.Deserialize<List<DelayEntryRecord>>(json, AppJson.Compact) ?? [];
-            if (!DelayEntriesJson.HasRestartProperty(json))
-            {
-                DelayEntriesJson.TryMigrateDriveRestart(entries);
-            }
-
+            DelayEntriesFile.ApplyRestartMigrationIfNeeded(json, entries, out _, out _);
             return entries;
         }
-        catch (Exception ex) when (
-            ex is IOException
-                or UnauthorizedAccessException
-                or JsonException
-                or NotSupportedException)
+        catch (Exception ex) when (ex is JsonException or NotSupportedException)
         {
             return Array.Empty<DelayEntryRecord>();
         }

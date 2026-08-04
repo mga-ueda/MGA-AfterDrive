@@ -3,14 +3,14 @@
   "tasks": [
     {
       "label": "build-run",
-      "type": "shell",
-      "command": "dotnet build \"${workspaceFolder}\\src\\MgaAfterDrive\\MgaAfterDrive.csproj\" -v q",
-      "options": {
-        "shell": {
-          "executable": "cmd.exe",
-          "args": ["/d", "/c"]
-        }
-      },
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "${workspaceFolder}/src/MgaAfterDrive/MgaAfterDrive.csproj",
+        "-v",
+        "q"
+      ],
       "group": {
         "kind": "build",
         "isDefault": true
@@ -22,24 +22,25 @@
         "clear": true,
         "close": true
       },
-      "problemMatcher": []
+      "problemMatcher": "$msCompile"
     },
     {
       "label": "run-main",
-      "type": "shell",
-      "command": "dotnet build \"${workspaceFolder}\\src\\MgaAfterDrive\\MgaAfterDrive.csproj\" -v q && start \"\" \"${workspaceFolder}\\src\\MgaAfterDrive\\bin\\Debug\\net8.0-windows\\MGA AfterDrive.exe\"",
-      "options": {
-        "shell": {
-          "executable": "cmd.exe",
-          "args": ["/d", "/c"]
-        }
-      },
+      "type": "process",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/.vscode/start-app.ps1"
+      ],
       "problemMatcher": [],
       "presentation": {
-        "reveal": "silent",
+        "reveal": "always",
         "panel": "shared",
-        "close": true,
-        "echo": false,
+        "close": false,
+        "echo": true,
         "focus": false,
         "showReuseMessage": false,
         "clear": true
@@ -47,20 +48,23 @@
     },
     {
       "label": "run-setting",
-      "type": "shell",
-      "command": "dotnet build \"${workspaceFolder}\\src\\MgaAfterDrive\\MgaAfterDrive.csproj\" -v q && start \"\" \"${workspaceFolder}\\src\\MgaAfterDrive\\bin\\Debug\\net8.0-windows\\MGA AfterDrive.exe\" --settings",
-      "options": {
-        "shell": {
-          "executable": "cmd.exe",
-          "args": ["/d", "/c"]
-        }
-      },
+      "type": "process",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/.vscode/start-app.ps1",
+        "-AppArgs",
+        "--settings"
+      ],
       "problemMatcher": [],
       "presentation": {
-        "reveal": "silent",
+        "reveal": "always",
         "panel": "shared",
-        "close": true,
-        "echo": false,
+        "close": false,
+        "echo": true,
         "focus": false,
         "showReuseMessage": false,
         "clear": true

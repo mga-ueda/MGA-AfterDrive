@@ -54,12 +54,6 @@ public static class ProcessExecutable
     }
 
     /// <summary>
-    /// プロセス名に一致するプロセスが 1 つ以上あるか。列挙失敗時は false。
-    /// </summary>
-    public static bool AnyByName(string processName)
-        => TryAnyByName(processName, out var any, out _) && any;
-
-    /// <summary>
     /// プロセス名で列挙し、1 つ以上あるかを返す。
     /// 列挙自体に失敗したときは false を返し <paramref name="error"/> に例外を入れる。
     /// </summary>
@@ -74,34 +68,6 @@ public static class ProcessExecutable
         try
         {
             any = processes.Length > 0;
-            return true;
-        }
-        finally
-        {
-            DisposeAll(processes);
-        }
-    }
-
-    /// <summary>
-    /// プロセス名で列挙し、各プロセスに対して action を実行する（終了時に必ず Dispose）。
-    /// 列挙失敗時は false。
-    /// </summary>
-    public static bool TryForEachByName(string processName, Action<Process> action, out Exception? error)
-    {
-        ArgumentNullException.ThrowIfNull(action);
-
-        if (!TryGetByName(processName, out var processes, out error))
-        {
-            return false;
-        }
-
-        try
-        {
-            foreach (var process in processes)
-            {
-                action(process);
-            }
-
             return true;
         }
         finally

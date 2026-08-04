@@ -8,9 +8,9 @@
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build-run",
-      "program": "${workspaceFolder}/src/MgaAfterDrive/bin/Debug/net8.0-windows/MGA AfterDrive.dll",
+      "program": "${workspaceFolder}/src/MgaAfterDrive/bin/Debug/net8.0-windows/MGA AfterDrive.exe",
       "args": [],
-      "cwd": "${workspaceFolder}/src/MgaAfterDrive",
+      "cwd": "${workspaceFolder}/src/MgaAfterDrive/bin/Debug/net8.0-windows",
       "console": "internalConsole",
       "stopAtEntry": false
     },
@@ -19,9 +19,9 @@
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build-run",
-      "program": "${workspaceFolder}/src/MgaAfterDrive/bin/Debug/net8.0-windows/MGA AfterDrive.dll",
+      "program": "${workspaceFolder}/src/MgaAfterDrive/bin/Debug/net8.0-windows/MGA AfterDrive.exe",
       "args": ["--settings"],
-      "cwd": "${workspaceFolder}/src/MgaAfterDrive",
+      "cwd": "${workspaceFolder}/src/MgaAfterDrive/bin/Debug/net8.0-windows",
       "console": "internalConsole",
       "stopAtEntry": false
     }

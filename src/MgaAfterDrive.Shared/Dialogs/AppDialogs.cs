@@ -1,6 +1,6 @@
 using System.Windows;
 
-namespace MgaAfterDrive.Forms;
+namespace MgaAfterDrive.Dialogs;
 
 /// <summary>
 /// アプリ共通の MessageBox ヘルパー。caption は呼び出し側の製品名を渡す。

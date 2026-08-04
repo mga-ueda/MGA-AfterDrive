@@ -22,8 +22,9 @@ public static class AppLayout
 
     /// <summary>
     /// ステータスバーの高さ。
+    /// XAML の Height 等は double 必須（int の x:Static は XamlParseException になる）。
     /// </summary>
-    public const int StatusBarHeight = 28;
+    public const double StatusBarHeight = 28;
 
     /// <summary>
     /// 自前描画タイトルバー（キャプション）の高さ。
@@ -39,4 +40,24 @@ public static class AppLayout
     /// 自前描画スクロールバーつまみの最小高さ。
     /// </summary>
     public const int ScrollbarMinThumbHeight = 24;
+
+    /// <summary>
+    /// Setting のオプション欄おおよそ高さ（フィット計算用）。
+    /// </summary>
+    public const int SettingOptionsPanelEstimateHeight = 160;
+
+    /// <summary>
+    /// Setting グリッドの既定行の高さ。
+    /// </summary>
+    public const int SettingGridRowHeight = 28;
+
+    /// <summary>
+    /// Setting グリッド列ヘッダーの高さ。
+    /// </summary>
+    public const int SettingGridHeaderHeight = 32;
+
+    /// <summary>
+    /// ウィンドウを画面内に収めるときの余白。
+    /// </summary>
+    public const int WindowFitScreenMargin = 40;
 }

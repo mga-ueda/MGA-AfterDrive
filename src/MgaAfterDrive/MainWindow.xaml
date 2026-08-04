@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:MgaAfterDrive.Controls"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        xmlns:theme="clr-namespace:MgaAfterDrive.Theme;assembly=MgaAfterDrive.Shared"
         xmlns:windows="clr-namespace:MgaAfterDrive.Windows;assembly=MgaAfterDrive.Shared"
         Title="MGA AfterDrive"
         Width="720"
@@ -63,7 +64,7 @@
     </ListBox>
 
     <Border Grid.Row="2"
-            Height="28"
+            Height="{x:Static theme:AppLayout.StatusBarHeight}"
             Background="Transparent"
             BorderBrush="{StaticResource BorderBrush}"
             BorderThickness="0,1,0,0"

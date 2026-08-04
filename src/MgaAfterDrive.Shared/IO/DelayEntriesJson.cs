@@ -52,12 +52,13 @@ public static class DelayEntriesJson
     /// <summary>
     /// Restart 未定義の旧データ向けに、Google Drive 配下エントリの Restart を ON にする。
     /// </summary>
-    public static bool TryMigrateDriveRestart(IEnumerable<IRestartableDelayEntry> entries)
+    public static bool TryMigrateDriveRestart<T>(IEnumerable<T> entries)
+        where T : IRestartableDelayEntry
     {
         ArgumentNullException.ThrowIfNull(entries);
 
         var migrated = false;
-        foreach (var entry in entries)
+        foreach (IRestartableDelayEntry entry in entries)
         {
             if (entry.Restart || string.IsNullOrWhiteSpace(entry.Path))
             {

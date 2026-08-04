@@ -113,14 +113,42 @@ public static class GoogleDriveStartupProbe
         }
     }
 
-    private static async Task<bool> WaitForProcessAsync(
+    private static Task<bool> WaitForProcessAsync(
         TimeSpan maxWait,
+        Action<string?> setStatusText,
+        CancellationToken cancellationToken) =>
+        WaitUntilAsync(
+            IsProcessRunning,
+            maxWait,
+            $"{ProcessName} 待機",
+            setStatusText,
+            cancellationToken);
+
+    private static Task<bool> WaitUntilAccessibleAsync(
+        string mountPath,
+        TimeSpan maxWait,
+        Action<string?> setStatusText,
+        CancellationToken cancellationToken) =>
+        WaitUntilAsync(
+            () => TryAccess(mountPath, out _),
+            maxWait,
+            "アクセス確認",
+            setStatusText,
+            cancellationToken);
+
+    /// <summary>
+    /// 条件成立まで待機。<see cref="OperationPause"/> 中は残り時間を減らさない。
+    /// </summary>
+    private static async Task<bool> WaitUntilAsync(
+        Func<bool> isDone,
+        TimeSpan maxWait,
+        string label,
         Action<string?> setStatusText,
         CancellationToken cancellationToken)
     {
         var remaining = maxWait;
 
-        while (!IsProcessRunning())
+        while (!isDone())
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -131,19 +159,19 @@ public static class GoogleDriveStartupProbe
 
             if (OperationPause.ShouldPause())
             {
-                setStatusText($"{ProcessName} 待機を一時停止中（{OperationPause.DescribeReason()}）");
-                await Task.Delay(PausePollInterval, cancellationToken);
+                setStatusText($"{label}を一時停止中（{OperationPause.DescribeReason()}）");
+                await Task.Delay(PausePollInterval, cancellationToken).ConfigureAwait(false);
                 continue;
             }
 
-            setStatusText($"{ProcessName} 待機中 {TimeDisplay.FormatCountdown(remaining)}");
+            setStatusText($"{label}中 {TimeDisplay.FormatCountdown(remaining)}");
             var slice = remaining < PollInterval ? remaining : PollInterval;
             if (slice > PausePollInterval)
             {
                 slice = PausePollInterval;
             }
 
-            await Task.Delay(slice, cancellationToken);
+            await Task.Delay(slice, cancellationToken).ConfigureAwait(false);
             if (OperationPause.ShouldPause())
             {
                 continue;
@@ -153,52 +181,6 @@ public static class GoogleDriveStartupProbe
         }
 
         return true;
-    }
-
-    private static async Task<bool> WaitUntilAccessibleAsync(
-        string mountPath,
-        TimeSpan maxWait,
-        Action<string?> setStatusText,
-        CancellationToken cancellationToken)
-    {
-        var remaining = maxWait;
-
-        while (true)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            if (TryAccess(mountPath, out _))
-            {
-                return true;
-            }
-
-            if (remaining <= TimeSpan.Zero)
-            {
-                return false;
-            }
-
-            if (OperationPause.ShouldPause())
-            {
-                setStatusText($"アクセス確認を一時停止中（{OperationPause.DescribeReason()}）");
-                await Task.Delay(PausePollInterval, cancellationToken);
-                continue;
-            }
-
-            setStatusText($"アクセス確認中 {TimeDisplay.FormatCountdown(remaining)}");
-            var slice = remaining < PollInterval ? remaining : PollInterval;
-            if (slice > PausePollInterval)
-            {
-                slice = PausePollInterval;
-            }
-
-            await Task.Delay(slice, cancellationToken);
-            if (OperationPause.ShouldPause())
-            {
-                continue;
-            }
-
-            remaining -= slice;
-        }
     }
 
     internal static bool IsProcessRunning()

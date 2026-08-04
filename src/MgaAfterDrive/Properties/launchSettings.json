@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "MGA AfterDrive": {
+      "commandName": "Project"
+    },
+    "MGA AfterDrive Setting": {
+      "commandName": "Project",
+      "commandLineArgs": "--settings"
+    }
+  }
+}
