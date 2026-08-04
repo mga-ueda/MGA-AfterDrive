@@ -37,9 +37,9 @@ public static class AppTheme
     public static readonly Color AccentFillHover = Color.FromRgb(20, 38, 56);
 
     /// <summary>
-    /// リスト選択など。背景に馴染む暗めのハイライト。
+    /// リスト選択など。背景に馴染む暗めの青みハイライト。
     /// </summary>
-    public static readonly Color Selection = Color.FromRgb(40, 48, 58);
+    public static readonly Color Selection = Color.FromRgb(36, 56, 88);
 
     /// <summary>警告枠（オレンジ）。</summary>
     public static readonly Color WarningBorder = Color.FromRgb(220, 130, 40);

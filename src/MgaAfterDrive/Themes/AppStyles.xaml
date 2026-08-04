@@ -14,7 +14,7 @@
   <Color x:Key="AccentBorderColor">#288CDC</Color>
   <Color x:Key="AccentFillColor">#0E1C2A</Color>
   <Color x:Key="AccentFillHoverColor">#142638</Color>
-  <Color x:Key="SelectionColor">#28303A</Color>
+  <Color x:Key="SelectionColor">#243858</Color>
   <Color x:Key="WarningBorderColor">#DC8228</Color>
   <Color x:Key="WarningFillColor">#2A180A</Color>
   <Color x:Key="WarningFillHoverColor">#38200E</Color>

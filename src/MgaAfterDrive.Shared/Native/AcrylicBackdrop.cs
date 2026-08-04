@@ -20,8 +20,11 @@ public static class AcrylicBackdrop
     private const int WsExLayered = 0x00080000;
     private const int WcaAccentPolicy = 19;
     private const int DwmwaUseImmersiveDarkMode = 20;
+    private const int DwmwaWindowCornerPreference = 33;
     private const int DwmwaSystemBackdropType = 38;
     private const int DwmsbtNone = 1;
+    /// <summary>Win11 標準枠と同程度の角丸。</summary>
+    private const int DwmwcpRound = 2;
 
     private enum AccentState
     {
@@ -74,6 +77,10 @@ public static class AcrylicBackdrop
             // SYSTEMBACKDROP は ACCENT と競合するため明示的に無効化
             var backdrop = DwmsbtNone;
             _ = DwmSetWindowAttribute(hwnd, DwmwaSystemBackdropType, ref backdrop, sizeof(int));
+
+            // WindowStyle=None では OS 標準の角丸が付かないため明示する
+            var corner = DwmwcpRound;
+            _ = DwmSetWindowAttribute(hwnd, DwmwaWindowCornerPreference, ref corner, sizeof(int));
 
             // Opacity 由来の WS_EX_LAYERED が残ると黒/グレー固定になる
             ClearLayeredStyle(hwnd);
