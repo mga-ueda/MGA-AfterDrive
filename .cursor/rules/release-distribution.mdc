@@ -7,6 +7,6 @@ alwaysApply: true
 
 - 正式な配布ファイル名は **`MGA AfterDrive.exe`**（スペースあり）。ハイフンやドットに置き換えない。
 - GitHub Releases は資産名のスペースをドット等に置換するため、**EXE をそのままアップロードしない**。
-- 代わりに ZIP をアップロードする。ZIP 名はスペースなし（例: `MGA-AfterDrive-1.0.4.zip`）。
+- 代わりに ZIP をアップロードする。ZIP 名はスペースなし（例: `MGA-AfterDrive-1.0.5.zip`）。
 - ZIP 内のエントリ名は必ず **`MGA AfterDrive.exe`** にする（`System.IO.Compression` で明示指定）。
 - リリースノートの配布物表記も「ZIP（中身は `MGA AfterDrive.exe`）」とする。
