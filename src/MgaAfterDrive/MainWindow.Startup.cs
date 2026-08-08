@@ -68,7 +68,7 @@ public partial class MainWindow
         }
     }
 
-    private Window? GetDialogOwner()
+    private MainWindow? GetDialogOwner()
     {
         if (!IsLoaded || !IsVisible || Opacity < 1.0)
         {
@@ -98,6 +98,10 @@ public partial class MainWindow
             if (!driveOk)
             {
                 AppendLog("Google Drive の確認に失敗したため、遅延起動をスキップします。");
+                // 未接続として監視を開始し、復帰時に全エントリを Delay 付きで起動する
+                Interlocked.Exchange(ref _needsFullRelaunch, 1);
+                GoogleDriveHealthMonitor.SeedAsDisconnected();
+                StartHealthMonitor();
                 await ApplyUpdateCheckResultAsync(updateCheckTask).ConfigureAwait(true);
                 updateCheckTask = null;
                 return;

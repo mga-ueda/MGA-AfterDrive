@@ -49,6 +49,18 @@ public static class GoogleDriveHealthMonitor
     }
 #endif
 
+    // 予期せぬ再開始後も直前の死活状態を引き継ぎ、復帰検知を取りこぼさない
+    private static bool? _lastHealthy;
+
+    /// <summary>
+    /// 起動プローブ失敗時など、未接続として監視を開始する。
+    /// 初回ポーリングが正常でも切断→復帰として通知されるようにする。
+    /// </summary>
+    public static void SeedAsDisconnected()
+    {
+        _lastHealthy = false;
+    }
+
     /// <param name="log">ログ出力（タイムスタンプは呼び出し側が付与）。</param>
     /// <param name="onStateChanged">状態遷移時の通知。引数は (接続中か, 詳細)。</param>
     public static async Task RunAsync(
@@ -61,34 +73,45 @@ public static class GoogleDriveHealthMonitor
 
         log($"Google Drive の死活監視を開始しました（間隔 {PollInterval.TotalSeconds:0} 秒）。");
 
-        bool? lastHealthy = null;
-
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var healthy = Check(out var detail);
-
-            if (lastHealthy is null)
+            try
             {
-                // 初回は切断状態のときだけ通知する
-                log(healthy
-                    ? $"Google Drive は正常です: {detail}"
-                    : $"[WARN] Google Drive を利用できません: {detail}");
-                if (!healthy)
+                var healthy = Check(out var detail);
+                var lastHealthy = _lastHealthy;
+
+                if (lastHealthy is null)
                 {
-                    onStateChanged(false, detail);
+                    // 初回は切断状態のときだけ通知する
+                    log(healthy
+                        ? $"Google Drive は正常です: {detail}"
+                        : $"[WARN] Google Drive を利用できません: {detail}");
+                    if (!healthy)
+                    {
+                        onStateChanged(false, detail);
+                    }
                 }
-            }
-            else if (healthy != lastHealthy)
-            {
-                log(healthy
-                    ? $"Google Drive の接続が復帰しました: {detail}"
-                    : $"[WARN] Google Drive の接続が切れました: {detail}");
-                onStateChanged(healthy, detail);
-            }
+                else if (healthy != lastHealthy)
+                {
+                    log(healthy
+                        ? $"Google Drive の接続が復帰しました: {detail}"
+                        : $"[WARN] Google Drive の接続が切れました: {detail}");
+                    onStateChanged(healthy, detail);
+                }
 
-            lastHealthy = healthy;
+                _lastHealthy = healthy;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                // 1 回のポーリング失敗で監視全体を止めない
+                log($"[ERROR] 死活監視のポーリングでエラー: {ex.GetType().Name}: {ex.Message}");
+            }
 
 #if DEBUG
             await DelayOrPulseAsync(cancellationToken);

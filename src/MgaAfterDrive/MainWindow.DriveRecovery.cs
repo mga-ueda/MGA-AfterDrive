@@ -7,6 +7,7 @@ namespace MgaAfterDrive;
 public partial class MainWindow
 {
     private const int BalloonTipMilliseconds = 5000;
+    private static readonly TimeSpan HealthMonitorRestartDelay = TimeSpan.FromSeconds(5);
 
     private void StartHealthMonitor()
     {
@@ -20,18 +21,41 @@ public partial class MainWindow
 
     private async Task RunHealthMonitorAsync()
     {
-        try
+        while (!_lifetimeCts.IsCancellationRequested)
         {
-            await GoogleDriveHealthMonitor
-                .RunAsync(AppendLog, OnDriveHealthChanged, _lifetimeCts.Token)
-                .ConfigureAwait(true);
-        }
-        catch (OperationCanceledException)
-        {
-        }
-        catch (Exception ex)
-        {
-            AppendLog($"[ERROR] 死活監視が予期せず停止しました: {ex.GetType().Name}: {ex.Message}");
+            try
+            {
+                await GoogleDriveHealthMonitor
+                    .RunAsync(AppendLog, OnDriveHealthChanged, _lifetimeCts.Token)
+                    .ConfigureAwait(true);
+
+                // RunAsync はキャンセル以外では通常戻らない。戻った場合も監視を継続する。
+                if (_lifetimeCts.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                AppendLog("[WARN] 死活監視が終了したため再開始します。");
+            }
+            catch (OperationCanceledException) when (_lifetimeCts.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (Exception ex)
+            {
+                AppendLog(
+                    $"[ERROR] 死活監視が予期せず停止しました: {ex.GetType().Name}: {ex.Message}。再開始します。");
+            }
+
+            try
+            {
+                await Task.Delay(HealthMonitorRestartDelay, _lifetimeCts.Token)
+                    .ConfigureAwait(true);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
         }
     }
 
