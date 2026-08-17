@@ -8,7 +8,7 @@ Google Drive for desktop の準備完了を待ってから起動できるほか�
 |------|------|
 | **MGA AfterDrive** | メインアプリ（監視・遅延起動・トレイ常駐）と Setting ウィンドウ（同一プロセス） |
 
-現在のバージョン: **1.0.5**
+現在のバージョン: **1.0.6**
 
 ## スクリーンショット
 
@@ -123,7 +123,7 @@ dotnet publish src\MgaAfterDrive\MgaAfterDrive.csproj `
 
 出力: `publish\MGA AfterDrive.exe`
 
-GitHub Releases へ公開するときは、資産名のスペースが置換されるため EXE を直接アップロードせず、中身が `MGA AfterDrive.exe` の ZIP（例: `MGA-AfterDrive-1.0.5.zip`）をアップロードします。
+GitHub Releases へ公開するときは、資産名のスペースが置換されるため EXE を直接アップロードせず、中身が `MGA AfterDrive.exe` の ZIP（例: `MGA-AfterDrive-1.0.6.zip`）をアップロードします。
 
 完全オフライン配布にする場合は `--self-contained true` を付けてください（ファイルサイズが増えます）。
 
