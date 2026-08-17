@@ -10,6 +10,8 @@
   <Color x:Key="ForegroundColor">#F1F1F1</Color>
   <Color x:Key="ForegroundMutedColor">#B4B4B4</Color>
   <Color x:Key="LogForegroundColor">#A8A8A8</Color>
+  <Color x:Key="LogWarningColor">#FFB040</Color>
+  <Color x:Key="LogErrorColor">#FF5C5C</Color>
   <Color x:Key="AccentColor">#1A8AD4</Color>
   <Color x:Key="AccentBorderColor">#288CDC</Color>
   <Color x:Key="AccentFillColor">#0E1C2A</Color>
@@ -29,6 +31,8 @@
   <SolidColorBrush x:Key="ForegroundBrush" Color="{StaticResource ForegroundColor}" />
   <SolidColorBrush x:Key="ForegroundMutedBrush" Color="{StaticResource ForegroundMutedColor}" />
   <SolidColorBrush x:Key="LogForegroundBrush" Color="{StaticResource LogForegroundColor}" />
+  <SolidColorBrush x:Key="LogWarningBrush" Color="{StaticResource LogWarningColor}" />
+  <SolidColorBrush x:Key="LogErrorBrush" Color="{StaticResource LogErrorColor}" />
   <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}" />
   <SolidColorBrush x:Key="AccentBorderBrush" Color="{StaticResource AccentBorderColor}" />
   <SolidColorBrush x:Key="AccentFillBrush" Color="{StaticResource AccentFillColor}" />

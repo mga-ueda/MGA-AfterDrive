@@ -16,7 +16,7 @@ public static class AppTheme
     /// <see cref="Native.AcrylicBackdrop"/> の ACCENT_POLICY に渡す。
     /// OS の SYSTEMBACKDROP Acrylic は薄くできないため、こちらで制御する。
     /// </summary>
-    public const byte AcrylicTintAlpha = 0x20;
+    public const byte AcrylicTintAlpha = 0x40;
 
     public static readonly Color Surface = Color.FromRgb(45, 45, 48);
     public static readonly Color SurfaceHover = Color.FromRgb(62, 62, 66);
@@ -28,6 +28,10 @@ public static class AppTheme
     /// ログ文字色。UI 前景より抑えめにして主張を弱める。
     /// </summary>
     public static readonly Color LogForeground = Color.FromRgb(168, 168, 168);
+    /// <summary>ログの警告（明るいオレンジ）。</summary>
+    public static readonly Color LogWarning = Color.FromRgb(255, 176, 64);
+    /// <summary>ログのエラー（明るい赤）。</summary>
+    public static readonly Color LogError = Color.FromRgb(255, 92, 92);
     public static readonly Color Accent = Color.FromRgb(26, 138, 212);
     /// <summary>アクセント枠用の明るい青。</summary>
     public static readonly Color AccentBorder = Color.FromRgb(40, 140, 220);

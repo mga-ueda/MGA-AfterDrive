@@ -1,7 +1,9 @@
 using System.Collections.ObjectModel;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using MediaBrushes = System.Windows.Media.Brushes;
 using MgaAfterDrive.Dialogs;
 using MgaAfterDrive.IO;
@@ -31,6 +33,7 @@ public partial class MainWindow : AppWindow
     private int _initialLaunchCompleted;
     private int _needsFullRelaunch;
     private int _statusVersion;
+    private int _logScrollQueued;
     private bool _allowExit;
     private bool _startMinimizedToTray;
 
@@ -52,10 +55,7 @@ public partial class MainWindow : AppWindow
 
         ShowInTaskbar = false;
         _startMinimizedToTray = AppSettingsStore.Load().StartMinimizedToTray;
-        if (_startMinimizedToTray)
-        {
-            ParkOffScreen();
-        }
+        ParkOffScreen();
 
         InitializeTrayIcon();
 #if DEBUG
@@ -68,6 +68,53 @@ public partial class MainWindow : AppWindow
     protected override bool PersistWindowBounds => false;
 
     protected override bool ShouldRevealOnShown => !_startMinimizedToTray;
+
+    /// <summary>
+    /// 中央寄せと可視化は Acrylic 適用後に自分で行う。
+    /// </summary>
+    protected override bool RevealOnContentRendered => false;
+
+    protected override void OnContentRendered(EventArgs e)
+    {
+        base.OnContentRendered(e);
+        if (!ShouldRevealOnShown)
+        {
+            return;
+        }
+
+        Dispatcher.BeginInvoke(RevealAfterAcrylicReady, DispatcherPriority.Loaded);
+    }
+
+    private void RevealAfterAcrylicReady()
+    {
+        if (IsRevealed)
+        {
+            return;
+        }
+
+        ParkOffScreen();
+        Background = MediaBrushes.Transparent;
+        LogList.Background = MediaBrushes.Transparent;
+        UpdateLayout();
+        ApplyAcrylicEffect();
+        UpdateLayout();
+
+        Dispatcher.BeginInvoke(() =>
+        {
+            if (IsRevealed)
+            {
+                return;
+            }
+
+            CenterOnPrimaryDisplay();
+            EnsureOnScreen();
+            MarkRevealed();
+            Activate();
+            Opacity = 1;
+            ApplyAcrylicEffect();
+            StartStartupSequenceWhenReady();
+        }, DispatcherPriority.Loaded);
+    }
 
     protected override void OnPreviewKeyDown(System.Windows.Input.KeyEventArgs e)
     {
@@ -103,6 +150,7 @@ public partial class MainWindow : AppWindow
         if (_startMinimizedToTray)
         {
             HideToTray();
+            StartStartupSequenceWhenReady();
             return;
         }
 
@@ -141,13 +189,19 @@ public partial class MainWindow : AppWindow
         {
             WindowState = WindowState.Normal;
         }
+    }
 
+    private void StartStartupSequenceWhenReady()
+    {
         if (Interlocked.Exchange(ref _probeStarted, 1) != 0)
         {
             return;
         }
 
-        _ = RunStartupSequenceAsync();
+        // ウィンドウを描画してから監視・起動を始める（ログが一気に溜まらないようにする）
+        Dispatcher.BeginInvoke(
+            () => _ = RunStartupSequenceAsync(),
+            DispatcherPriority.ContextIdle);
     }
 
     private void MainWindow_Closed(object? sender, EventArgs e)
@@ -209,6 +263,40 @@ public partial class MainWindow : AppWindow
     {
         e.Handled = true;
         OpenSetting();
+    }
+
+    private void LogContextMenu_Opened(object sender, RoutedEventArgs e)
+    {
+        var hasLines = _logLines.Count > 0;
+        LogCopyMenuItem.IsEnabled = hasLines;
+        LogClearMenuItem.IsEnabled = hasLines && !OperationPause.IsLicenseViewActive;
+    }
+
+    private void LogCopyMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (_logLines.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            System.Windows.Clipboard.SetText(string.Join(Environment.NewLine, _logLines));
+        }
+        catch (Exception ex) when (ex is ExternalException or InvalidOperationException)
+        {
+            AppendLog($"[ERROR] ログのコピーに失敗しました: {ex.GetType().Name}: {ex.Message}");
+        }
+    }
+
+    private void LogClearMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (OperationPause.IsLicenseViewActive)
+        {
+            return;
+        }
+
+        _logLines.Clear();
     }
 
     private void OpenSetting()
@@ -294,7 +382,14 @@ public partial class MainWindow : AppWindow
 
         if (!Dispatcher.CheckAccess())
         {
-            UiDispatch.BeginInvoke(Dispatcher, Apply);
+            try
+            {
+                Dispatcher.BeginInvoke(Apply, DispatcherPriority.Render);
+            }
+            catch (InvalidOperationException)
+            {
+            }
+
             return;
         }
 
@@ -319,7 +414,7 @@ public partial class MainWindow : AppWindow
             }
 
             _logLines.Add(line);
-            ScrollLogToEnd();
+            QueueScrollLogToEnd();
         }
         catch (InvalidOperationException)
         {

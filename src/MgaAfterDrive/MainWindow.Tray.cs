@@ -133,6 +133,7 @@ public partial class MainWindow
         disconnectItem.Click += (_, _) =>
         {
             AppendLog("[DEBUG] Google Drive 切断をシミュレートします。");
+            AppendLog("[ERROR] （DEBUG）赤文字ログの表示確認です。");
             StartHealthMonitor();
             GoogleDriveHealthMonitor.SimulateDisconnect();
         };

@@ -27,6 +27,8 @@ public static class DelayedLaunchRunner
 
         var currentEntries = entries.ToList();
         var launchedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var skippedLabels = new List<string>();
+        var failedLabels = new List<string>();
         var elapsedActive = TimeSpan.Zero;
 
         while (true)
@@ -82,23 +84,48 @@ public static class DelayedLaunchRunner
                 }
                 else
                 {
-                    log($"[{step}] 直ちに{actionVerb}: {label}");
+                    log($"[{step}] {actionVerb}: {label}");
                 }
             }
             else
             {
-                log($"[{step}] 直ちに{actionVerb}: {label}");
+                log($"[{step}] {actionVerb}: {label}");
             }
 
-            LaunchOne(entry, label, step, log, actionVerb);
+            var outcome = LaunchOne(entry, label, step, log, actionVerb);
+            if (outcome == LaunchOutcome.SkippedAlreadyRunning)
+            {
+                skippedLabels.Add(label);
+            }
+            else if (outcome == LaunchOutcome.Failed)
+            {
+                failedLabels.Add(label);
+            }
+
             launchedPaths.Add(path);
         }
 
         setStatusText(null);
         log("すべての起動エントリを処理しました。");
+        if (skippedLabels.Count > 0)
+        {
+            log($"[WARN] 起動済みのためスキップしたアプリがあります（{skippedLabels.Count} 件）。");
+        }
+
+        if (failedLabels.Count > 0)
+        {
+            log($"[ERROR] {actionVerb}できなかったアプリがあります（{failedLabels.Count} 件）。");
+        }
     }
 
-    private static void LaunchOne(
+    private enum LaunchOutcome
+    {
+        Started,
+        SkippedAlreadyRunning,
+        Failed,
+    }
+
+    private static LaunchOutcome LaunchOne(
         DelayEntryRecord entry,
         string label,
         string step,
@@ -108,17 +135,18 @@ public static class DelayedLaunchRunner
         var filePath = entry.Path?.Trim() ?? string.Empty;
         if (ProcessExecutable.IsRunning(filePath))
         {
-            log($"[{step}] 起動済みのためスキップしました: {label}");
-            return;
+            log($"[{step}] [WARN] 起動済みのためスキップしました: {label}");
+            return LaunchOutcome.SkippedAlreadyRunning;
         }
 
         if (!ProcessLaunch.TryStart(filePath, entry.Option, out var error))
         {
             log($"[{step}] [ERROR] {actionVerb}に失敗しました ({label}): {error}");
-            return;
+            return LaunchOutcome.Failed;
         }
 
         log($"[{step}] {actionVerb}しました: {filePath}");
+        return LaunchOutcome.Started;
     }
 
     private static Task<PauseAwareCountdown.WaitResult> WaitWithCountdownAsync(

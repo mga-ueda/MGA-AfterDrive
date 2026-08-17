@@ -62,11 +62,6 @@ public class AppWindow : Window
     protected virtual bool RevealOnContentRendered => true;
 
     /// <summary>
-    /// true のとき可視化後に WS_EX_LAYERED を外す（Acrylic 用）。通常窓ではチラつくので false。
-    /// </summary>
-    protected virtual bool ClearLayeredStyleOnReveal => true;
-
-    /// <summary>
     /// false のとき初回表示で Opacity を上げず、サブクラスがトレイ格納などへ進める。
     /// </summary>
     protected virtual bool ShouldRevealOnShown => true;
@@ -257,13 +252,9 @@ public class AppWindow : Window
         }
 
         Opacity = 1;
-        if (ClearLayeredStyleOnReveal)
-        {
-            // Opacity 変更で付く WS_EX_LAYERED を外さないと DWM Acrylic が黒/グレーになる
-            AcrylicBackdrop.ClearLayeredStyle(new WindowInteropHelper(this).Handle);
-        }
-
         _revealed = true;
+        // レイヤード解除は Acrylic.Apply 内で Accent と連続して行う。
+        // 先に外すと、透明背景が一瞬真っ黒になる。
         OnRevealed();
     }
 

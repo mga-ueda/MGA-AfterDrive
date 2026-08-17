@@ -109,8 +109,16 @@ public static class GoogleDriveHealthMonitor
             }
             catch (Exception ex)
             {
-                // 1 回のポーリング失敗で監視全体を止めない
-                log($"[ERROR] 死活監視のポーリングでエラー: {ex.GetType().Name}: {ex.Message}");
+                // 1 回のポーリング失敗で監視全体を止めない。
+                // 例外のまま前回が「接続中」だと、切断も復帰も検知できない。
+                var detail = $"{ex.GetType().Name}: {ex.Message}";
+                if (_lastHealthy != false)
+                {
+                    log($"[WARN] Google Drive の接続が切れました: ポーリング例外 {detail}");
+                    onStateChanged(false, detail);
+                }
+
+                _lastHealthy = false;
             }
 
 #if DEBUG

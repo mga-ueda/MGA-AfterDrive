@@ -45,11 +45,6 @@ public partial class SettingWindow : AppWindow
     /// </summary>
     protected override bool RevealOnContentRendered => false;
 
-    /// <summary>
-    /// Setting は Acrylic ではない。LAYERED 解除は消えて再表示のように見える。
-    /// </summary>
-    protected override bool ClearLayeredStyleOnReveal => false;
-
     private void SettingWindow_Loaded(object sender, RoutedEventArgs e)
     {
         ParkOffScreen();

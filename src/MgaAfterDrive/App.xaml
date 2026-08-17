@@ -1,12 +1,14 @@
 <Application x:Class="MgaAfterDrive.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:MgaAfterDrive"
              ShutdownMode="OnExplicitShutdown">
   <Application.Resources>
     <ResourceDictionary>
       <ResourceDictionary.MergedDictionaries>
         <ResourceDictionary Source="Themes/AppStyles.xaml" />
       </ResourceDictionary.MergedDictionaries>
+      <local:LogLineForegroundConverter x:Key="LogLineForegroundConverter" />
     </ResourceDictionary>
   </Application.Resources>
 </Application>

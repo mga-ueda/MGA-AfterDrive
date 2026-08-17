@@ -52,11 +52,7 @@ public static class AcrylicBackdrop
             source.CompositionTarget.BackgroundColor = Colors.Transparent;
         }
 
-        if (window.Opacity < 1.0)
-        {
-            window.Opacity = 1.0;
-        }
-
+        // Opacity を先に 1 にすると、Accent 適用までの 1 フレームが真っ黒になる
         Apply(hwnd, blurType);
     }
 

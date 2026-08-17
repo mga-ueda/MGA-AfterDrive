@@ -139,7 +139,7 @@ public partial class MainWindow
                     return;
                 }
 
-                AppendLog($"接続が復帰しました。Google Drive 上のアプリ（{launchEntries.Count} 件）を直ちに再開します。");
+                AppendLog($"接続が復帰しました。Google Drive 上のアプリ（{launchEntries.Count} 件）を再開します。");
             }
 
             if (launchEntries.Count == 0)

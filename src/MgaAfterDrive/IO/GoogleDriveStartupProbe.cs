@@ -6,6 +6,7 @@ namespace MgaAfterDrive.IO;
 public static class GoogleDriveStartupProbe
 {
     private const string ProcessName = "GoogleDriveFS";
+    /// <summary>ドライブ確認の試行間隔。短いと logon 直後の負荷をさらに上げる。</summary>
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(3);
     private static readonly TimeSpan PausePollInterval = TimeSpan.FromMilliseconds(200);
 
@@ -38,7 +39,12 @@ public static class GoogleDriveStartupProbe
             bool processRunning;
             try
             {
-                processRunning = IsProcessRunning();
+                processRunning = await Task.Run(IsProcessRunning, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -137,7 +143,8 @@ public static class GoogleDriveStartupProbe
             cancellationToken);
 
     /// <summary>
-    /// 条件成立まで待機。<see cref="OperationPause"/> 中は残り時間を減らさない。
+    /// 条件成立まで待機。<see cref="OperationPause"/> 中は期限を延ばす。
+    /// カウントダウンは壁時計で更新し、ドライブ I/O の完了を待たない。
     /// </summary>
     private static async Task<bool> WaitUntilAsync(
         Func<bool> isDone,
@@ -146,41 +153,71 @@ public static class GoogleDriveStartupProbe
         Action<string?> setStatusText,
         CancellationToken cancellationToken)
     {
-        var remaining = maxWait;
+        var deadline = DateTime.UtcNow + maxWait;
+        var nextCheckAt = DateTime.UtcNow;
+        Task<bool>? inFlight = null;
 
-        while (!isDone())
+        while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (remaining <= TimeSpan.Zero)
+            if (inFlight is { IsCompleted: true })
             {
-                return false;
+                var done = await inFlight.ConfigureAwait(false);
+                inFlight = null;
+                if (done)
+                {
+                    return true;
+                }
+
+                nextCheckAt = DateTime.UtcNow + PollInterval;
             }
 
             if (OperationPause.ShouldPause())
             {
                 setStatusText($"{label}を一時停止中（{OperationPause.DescribeReason()}）");
+                var pausedAt = DateTime.UtcNow;
+                await Task.Delay(PausePollInterval, cancellationToken).ConfigureAwait(false);
+                deadline += DateTime.UtcNow - pausedAt;
+                continue;
+            }
+
+            var remaining = deadline - DateTime.UtcNow;
+            if (remaining <= TimeSpan.Zero)
+            {
+                if (inFlight is null)
+                {
+                    return false;
+                }
+
+                try
+                {
+                    return await inFlight.WaitAsync(TimeSpan.FromSeconds(2), cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch (TimeoutException)
+                {
+                    return false;
+                }
+            }
+
+            setStatusText($"{label}中 {TimeDisplay.FormatCountdown(remaining)}");
+
+            if (inFlight is null && DateTime.UtcNow >= nextCheckAt)
+            {
+                // キャンセルしても Directory.Exists 等は止まらないため、CT は載せない
+                inFlight = Task.Run(isDone, CancellationToken.None);
+            }
+
+            if (inFlight is null)
+            {
                 await Task.Delay(PausePollInterval, cancellationToken).ConfigureAwait(false);
                 continue;
             }
 
-            setStatusText($"{label}中 {TimeDisplay.FormatCountdown(remaining)}");
-            var slice = remaining < PollInterval ? remaining : PollInterval;
-            if (slice > PausePollInterval)
-            {
-                slice = PausePollInterval;
-            }
-
-            await Task.Delay(slice, cancellationToken).ConfigureAwait(false);
-            if (OperationPause.ShouldPause())
-            {
-                continue;
-            }
-
-            remaining -= slice;
+            await Task.WhenAny(inFlight, Task.Delay(PausePollInterval, cancellationToken))
+                .ConfigureAwait(false);
         }
-
-        return true;
     }
 
     internal static bool IsProcessRunning()
@@ -229,8 +266,12 @@ public static class GoogleDriveStartupProbe
                 or DriveNotFoundException
                 or DirectoryNotFoundException
                 or NotSupportedException
-                or ArgumentException)
+                or ArgumentException
+                or OutOfMemoryException)
         {
+            // Google Drive プロセスが落ちた／ハングしたあと、フィルタドライバ越しの I/O が
+            // Win32 ERROR_NOT_ENOUGH_MEMORY を返し、.NET が OutOfMemoryException にすることがある。
+            // ヒープ不足ではなく「マウントに手が出せない」ので、アクセス不可として扱う。
             detail = $"{ex.GetType().Name}: {ex.Message}";
             return false;
         }

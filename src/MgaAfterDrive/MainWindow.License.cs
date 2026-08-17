@@ -1,3 +1,7 @@
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Threading;
 using MgaAfterDrive.IO;
 
 namespace MgaAfterDrive;
@@ -68,22 +72,83 @@ public partial class MainWindow
         }
 
         SetStatusText(null);
-        ScrollLogToEnd();
+        QueueScrollLogToEnd();
+    }
+
+    private void QueueScrollLogToEnd()
+    {
+        if (Interlocked.Exchange(ref _logScrollQueued, 1) != 0)
+        {
+            return;
+        }
+
+        Dispatcher.BeginInvoke(() =>
+        {
+            Interlocked.Exchange(ref _logScrollQueued, 0);
+            ScrollLogToEnd();
+        }, DispatcherPriority.Loaded);
     }
 
     private void ScrollLogToStart()
     {
-        if (_logLines.Count > 0)
+        if (_logLines.Count == 0)
         {
-            LogList.ScrollIntoView(_logLines[0]);
+            return;
         }
+
+        LogList.UpdateLayout();
+        var viewer = FindLogScrollViewer();
+        if (viewer is not null)
+        {
+            viewer.ScrollToHome();
+            return;
+        }
+
+        LogList.ScrollIntoView(_logLines[0]);
     }
 
     private void ScrollLogToEnd()
     {
-        if (_logLines.Count > 0)
+        if (_logLines.Count == 0)
         {
-            LogList.ScrollIntoView(_logLines[^1]);
+            return;
         }
+
+        LogList.UpdateLayout();
+        var viewer = FindLogScrollViewer();
+        if (viewer is not null)
+        {
+            viewer.ScrollToEnd();
+            return;
+        }
+
+        LogList.ScrollIntoView(_logLines[^1]);
+    }
+
+    private ScrollViewer? FindLogScrollViewer()
+    {
+        return FindDescendant<ScrollViewer>(LogList);
+    }
+
+    private static T? FindDescendant<T>(DependencyObject root)
+        where T : DependencyObject
+    {
+        var count = VisualTreeHelper.GetChildrenCount(root);
+        for (var i = 0; i < count; i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+            if (child is T match)
+            {
+                return match;
+            }
+
+            var nested = FindDescendant<T>(child);
+            if (nested is not null)
+            {
+                return nested;
+            }
+        }
+
+        return null;
     }
 }

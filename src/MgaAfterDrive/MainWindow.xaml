@@ -42,8 +42,21 @@
              Foreground="{StaticResource LogForegroundBrush}"
              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
              ScrollViewer.VerticalScrollBarVisibility="Auto"
-             VirtualizingPanel.IsVirtualizing="True"
-             VirtualizingPanel.VirtualizationMode="Recycling">
+             VirtualizingPanel.IsVirtualizing="False">
+      <ListBox.ContextMenu>
+        <ContextMenu Opened="LogContextMenu_Opened">
+          <MenuItem x:Name="LogCopyMenuItem" Header="コピー(_C)" Click="LogCopyMenuItem_Click" />
+          <MenuItem x:Name="LogClearMenuItem" Header="クリア(_L)" Click="LogClearMenuItem_Click" />
+        </ContextMenu>
+      </ListBox.ContextMenu>
+      <ListBox.ItemTemplate>
+        <DataTemplate>
+          <TextBlock Text="{Binding}"
+                     TextWrapping="Wrap"
+                     HorizontalAlignment="Stretch"
+                     Foreground="{Binding Converter={StaticResource LogLineForegroundConverter}}" />
+        </DataTemplate>
+      </ListBox.ItemTemplate>
       <ListBox.ItemContainerStyle>
         <Style TargetType="ListBoxItem">
           <Setter Property="Padding" Value="4,1" />

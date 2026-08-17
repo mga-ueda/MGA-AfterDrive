@@ -90,7 +90,7 @@ public static class ManagedAppTerminator
                         continue;
                     }
 
-                    KillProcess(process, label, log);
+                    KillProcess(process);
                     if (!process.WaitForExit((int)ExitWait.TotalMilliseconds))
                     {
                         log($"[WARN] 終了待機がタイムアウトしました: {label}（PID {process.Id}）");
@@ -124,31 +124,22 @@ public static class ManagedAppTerminator
     }
 
     /// <summary>
-    /// プロセスツリーごと終了を試し、呼び出し元がツリーに含まれる場合などは対象のみ終了する。
-    /// （ファイルマネージャ等から本アプリを起動していると tree kill は InvalidOperationException になる）
+    /// 対象プロセスだけを終了する。
+    /// ファイルマネージャやランチャーのツリーごと終了すると、そこから開いた Cursor 等まで巻き込まれる。
+    /// 同一 EXE の複数プロセスは呼び出し側の名前列挙で扱う。
     /// </summary>
-    private static void KillProcess(Process process, string label, Action<string> log)
+    private static void KillProcess(Process process)
     {
         try
         {
-            process.Kill(entireProcessTree: true);
-            return;
-        }
-        catch (Exception ex) when (ex is InvalidOperationException or AggregateException)
-        {
-            try
-            {
-                if (process.HasExited)
-                {
-                    return;
-                }
-            }
-            catch (InvalidOperationException)
+            if (process.HasExited)
             {
                 return;
             }
-
-            log($"プロセスツリー終了をスキップし、対象のみ終了します: {label}（PID {process.Id}）: {ex.Message}");
+        }
+        catch (InvalidOperationException)
+        {
+            return;
         }
 
         process.Kill(entireProcessTree: false);
